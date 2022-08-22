@@ -1,0 +1,7 @@
+_target_: src.datamodules.baby_datamodule.BabyDataModule
+data_dir: ${paths.data_dir}
+batch_size: 4
+num_workers: 8
+pin_memory: False
+image_max_size: [960, 1728]
+white_pixel: [253, 231, 36, 255]

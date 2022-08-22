@@ -19,7 +19,7 @@ extras:
 hydra:
   job_logging:
     root:
-      level: DEBUG
+      level: INFO
 
   # use this to also set hydra loggers to 'DEBUG'
   # verbose: True
