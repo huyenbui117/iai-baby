@@ -45,6 +45,7 @@ class BabyDectDataModule(LightningDataModule):
     def __init__(
         self,
         data_dir: str = "data/",
+        augment: transforms.Compose=transforms.Compose([]),
         train_val_test_split: Tuple[int, int, int] = (55_000, 5_000, 10_000),
         batch_size: int = 64,
         num_workers: int = 0,
@@ -54,21 +55,17 @@ class BabyDectDataModule(LightningDataModule):
     ):
         super().__init__()
 
-        # this line allows to access init params with 'self.hpimage_max_siarams' attribute
+        # this line allows to access init params wit[transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]h 'self.hpimage_max_siarams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
         # data transformations
-        self.transforms = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
-        print(type(self.transforms))
-        
+        self.transforms = augment
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None
-
-
+        # self.augment = augment
+        
     def prepare_data(self):
         """Download data if needed.
 
@@ -107,7 +104,6 @@ class BabyDectDataModule(LightningDataModule):
             transforms.PILToTensor(),
             transforms.Pad(self.get_pad_sequence(image.width, image.height, self.hparams.image_max_size[1], self.hparams.image_max_size[0]))
         ])
-
         img_tensor = transform(image)
         
         return img_tensor
@@ -125,7 +121,7 @@ class BabyDectDataModule(LightningDataModule):
         return label_tensor
 
 
-    def load_data_from_dir(self, data_dir, convert_x_greyscale=False):
+    def load_data_from_dir(self, data_dir, convert_x_greyscale=False, augment = False):
         """Load data from directory
 
         This method load images from directory and return data as sequence.
@@ -147,10 +143,16 @@ class BabyDectDataModule(LightningDataModule):
                 path_to_coords[file_id] = torch.tensor([float(row[1]), float(row[2])])
 
         for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "images/*")), desc=f"Loading images from {data_dir}"):
-            X.append(self.read_image(path, convert_x_greyscale))
+            _x = self.read_image(path, convert_x_greyscale)
+            if augment:
+                _x= self.transforms(_x.float())
+            X.append(_x)
         
         for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "label/*")), desc=f"Loading labels from {data_dir}"):
-            y1.append(self.read_label(path))
+            _y1 = self.read_label(path)
+            if augment:
+                _y1 = self.transforms(_y1.float())
+            y1.append(_y1)
             file_id = path.split("/")[-1]
             y2.append(path_to_coords[file_id])
 
@@ -166,7 +168,7 @@ class BabyDectDataModule(LightningDataModule):
         """
         print("Setup baby", self.hparams.data_dir)
 
-        self.data_train = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "train"))
+        self.data_train = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "train"), augment = True)
         self.data_val = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "val"))
         self.data_test = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "test"), convert_x_greyscale=True)
 
