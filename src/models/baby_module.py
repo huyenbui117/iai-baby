@@ -27,7 +27,6 @@ class BabyLitModule(LightningModule):
         optimizer: torch.optim.Optimizer,
         loss_func: torch.nn.CrossEntropyLoss,
         eval_img_path: str = "./tmp",
-        post_processor: 
         log_train_img: bool = True,
         log_val_img: bool = True,
         log_test_img: bool = True,
