@@ -25,9 +25,9 @@ class BabyLitModule(LightningModule):
         self,
         net: segmentation_models_pytorch.Unet,
         optimizer: torch.optim.Optimizer,
-        # class_weight: torch.Tensor,
         loss_func: torch.nn.CrossEntropyLoss,
         eval_img_path: str = "./tmp",
+        post_processor: 
         log_train_img: bool = True,
         log_val_img: bool = True,
         log_test_img: bool = True,
@@ -99,6 +99,28 @@ class BabyLitModule(LightningModule):
         loss = self.criterion(logits, y)
         return loss, preds, y
 
+
+    def log_batch_img(self, batch, batch_idx, preds, targets, phase="train"):
+        # Calculate and log predicted images
+        img_tensor = batch[0].swapaxes(0,1) # img_tensor shape: (channel(1) x n x h x w)
+        img_mask = img_tensor.repeat(3,1,1,1)/255
+        # Mask the prediction with red, groundtruth with green 
+        img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
+        img_mask[1] = (targets == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
+            
+        log_imgs = img_mask.swapaxes(1,0).cpu()
+        log_img_paths = []
+        for idx, img in enumerate(log_imgs):
+            img_path = os.path.join(self.hparams.eval_img_path, f"{phase}-{batch_idx}-{idx}.png")
+            save_image(
+                img,
+                img_path
+            )
+            log_img_paths.append(img_path)
+
+        return log_img_paths
+
+
     def training_step(self, batch: Any, batch_idx: int):
         loss, preds, targets = self.step(batch)
 
@@ -118,35 +140,21 @@ class BabyLitModule(LightningModule):
         self.log("train/f1", f1, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train/iou", iou, on_step=False, on_epoch=True, prog_bar=True)
 
-        if self.log_train_img:
-            # Calculate and log predicted images
-            img_tensor = batch[0].swapaxes(0,1) # img_tensor shape: (channel(1) x n x h x w)
-
-            img_mask = img_tensor.repeat(3,1,1,1)/255
-
-            # Mask the prediction with red, groundtruth with green 
-            img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
-            img_mask[1] = (targets == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
-                
-            log_imgs = img_mask.swapaxes(1,0).cpu()
-            for idx, img in enumerate(log_imgs):
-                img_path = os.path.join(self.hparams.eval_img_path, f"train-{batch_idx}.png")
-                save_image(
-                    img,
-                    img_path
-                )
-                self.log_img_paths.append(img_path)
+        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="train") if self.log_train_img else []
 
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
         # remember to always return loss from `training_step()` or else backpropagation will fail!
-        return {"loss": loss}
+        return {
+            "loss": loss,
+            "img_log_paths": img_log_paths
+        }
 
     def training_epoch_end(self, outputs: List[Any]):
         # `outputs` is a list of dicts returned from `training_step()`
-        if len(self.log_img_paths) > 0:
-            self.logger.log_image("train/images", self.log_img_paths)
-            self.log_img_paths = []
+        img_log_paths = [path for output in outputs for path in output["img_log_paths"]]
+        if len(img_log_paths) > 0:
+            self.logger.log_image("train/images", img_log_paths)
         
         self.train_acc.reset()
 
@@ -167,27 +175,11 @@ class BabyLitModule(LightningModule):
         self.log("val/f1", f1, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val/iou", iou, on_step=False, on_epoch=True, prog_bar=True)
 
-        if self.log_val_img:
-            # Calculate and log predicted images
-            img_tensor = batch[0].swapaxes(0,1) # img_tensor shape: (channel(1) x n x h x w)
-
-            img_mask = img_tensor.repeat(3,1,1,1)/255
-
-            # Mask the prediction with red, groundtruth with green 
-            img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
-            img_mask[1] = (targets == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
-                
-            log_imgs = img_mask.swapaxes(1,0).cpu()
-            for idx, img in enumerate(log_imgs):
-                img_path = os.path.join(self.hparams.eval_img_path, f"eval-{batch_idx}.png")
-                save_image(
-                    img,
-                    img_path
-                )
-                self.log_img_paths.append(img_path)
+        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="val") if self.log_val_img else []
         
         return {
             "loss": loss,
+            "img_log_paths": img_log_paths
         }
 
     def validation_epoch_end(self, outputs: List[Any]):
@@ -200,9 +192,9 @@ class BabyLitModule(LightningModule):
         self.val_f1_best.update(f1)
         self.log("val/f1_best", self.val_f1_best.compute(), on_epoch=True, prog_bar=True)
         
-        if len(self.log_img_paths) > 0:
-            self.logger.log_image("val/images", self.log_img_paths)
-            self.log_img_paths = []
+        img_log_paths = [path for output in outputs for path in output["img_log_paths"]]
+        if len(img_log_paths) > 0:
+            self.logger.log_image("val/images", img_log_paths)
         
         self.val_iou.reset()
         self.val_f1.reset()
@@ -224,31 +216,18 @@ class BabyLitModule(LightningModule):
         self.log("test/f1", f1, on_step=False, on_epoch=True)
         self.log("test/iou", iou, on_step=False, on_epoch=True)
 
-        if self.log_test_img:
-            # Calculate and log predicted images
-            img_tensor = batch[0].swapaxes(0,1) # img_tensor shape: (channel(1) x n x h x w)
+        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="test") if self.log_val_img else []
 
-            img_mask = img_tensor.repeat(3,1,1,1)/255
+        return {
+            "loss": loss,
+            "img_log_paths": img_log_paths
+        }
 
-            # Mask the prediction with red, groundtruth with green 
-            img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
-            img_mask[1] = (targets == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
-                
-            log_imgs = img_mask.swapaxes(1,0).cpu()
-            for idx, img in enumerate(log_imgs):
-                img_path = os.path.join(self.hparams.eval_img_path, f"test-{batch_idx}.png")
-                save_image(
-                    img,
-                    img_path
-                )
-                self.log_img_paths.append(img_path)
-
-        return {"loss": loss}
 
     def test_epoch_end(self, outputs: List[Any]):
-        if len(self.log_img_paths) > 0:
-            self.logger.log_image("test/images", self.log_img_paths)
-            self.log_img_paths = []
+        img_log_paths = [path for output in outputs for path in output["img_log_paths"]]
+        if len(img_log_paths) > 0:
+            self.logger.log_image("test/images", img_log_paths)
 
         self.test_acc.reset()
 

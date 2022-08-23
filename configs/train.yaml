@@ -5,7 +5,7 @@
 defaults:
   - _self_
   - datamodule: baby.yaml
-  - model: baby.yaml
+  - model: baby_resnet50.yaml
   - callbacks: default.yaml
   - logger: wandb.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: gpu.yaml
