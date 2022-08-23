@@ -25,10 +25,11 @@ class BabyLitModule(LightningModule):
         self,
         net: segmentation_models_pytorch.Unet,
         optimizer: torch.optim.Optimizer,
-        class_weight: torch.Tensor,
+        # class_weight: torch.Tensor,
+        loss_func: torch.nn.CrossEntropyLoss,
         eval_img_path: str = "./tmp",
         log_train_img: bool = True,
-        log_eval_img: bool = True,
+        log_val_img: bool = True,
         log_test_img: bool = True,
     ):
         super().__init__()
@@ -39,14 +40,16 @@ class BabyLitModule(LightningModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False, ignore=["net"])
         self.log_train_img = log_train_img
-        self.log_eval_img = log_eval_img
+        self.log_val_img = log_val_img
         self.log_test_img = log_test_img
         
         self.net = net
 
         # loss function
-        self.criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(class_weight))
-        
+        # self.criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(class_weight))
+        self.criterion = loss_func
+
+
         # use separate metric instance for train, val and test step
         # to ensure a proper reduction over the epoch
         self.train_acc = Accuracy(mdmc_reduce=MDMC_REDUCE)
@@ -164,7 +167,7 @@ class BabyLitModule(LightningModule):
         self.log("val/f1", f1, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val/iou", iou, on_step=False, on_epoch=True, prog_bar=True)
 
-        if self.log_eval_img:
+        if self.log_val_img:
             # Calculate and log predicted images
             img_tensor = batch[0].swapaxes(0,1) # img_tensor shape: (channel(1) x n x h x w)
 

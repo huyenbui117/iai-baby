@@ -1,0 +1,26 @@
+_target_: src.models.baby_dect_module.BabyDectLitModule
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.001
+
+net:
+  _target_: src.models.backbone.vgg.VGG
+  features: 
+    _target_: src.models.backbone.vgg.make_layers
+    cfg: [24, "M", 48, "M", 96, "M", 192, 192, 192, "M"]
+    batch_norm: true
+  num_classes: 2
+  init_weights: false
+  dropout: 0.5
+
+loss_func:
+  _target_: torch.nn.MSELoss
+
+eval_img_path: ${paths.log_dir}/tmp
+
+log_train_img: false
+log_val_img: true
+log_test_img: true

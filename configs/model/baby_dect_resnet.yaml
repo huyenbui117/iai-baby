@@ -1,0 +1,21 @@
+_target_: src.models.baby_dect_module.BabyDectLitModule
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.001
+
+net:
+  _target_: src.models.backbone.resnet.ResNet
+  in_channels: 1
+  num_classes: 2
+
+loss_func:
+  _target_: torch.nn.MSELoss
+
+eval_img_path: ${paths.log_dir}/tmp
+
+log_train_img: false
+log_val_img: true
+log_test_img: true

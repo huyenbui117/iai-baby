@@ -4,7 +4,7 @@
 # python train.py experiment=example
 
 defaults:
-  - override /datamodule: baby.yaml
+  - override /datamodule: baby_test.yaml
   - override /model: baby_dect_resnet.yaml
   - override /callbacks: default.yaml
   - override /trainer: gpu.yaml
@@ -21,7 +21,6 @@ seed: 12345
 callbacks:
   early_stopping:
     monitor: "val/loss"
-    patience: 50
   model_checkpoint:
     monitor: "val/loss"
 
@@ -40,12 +39,8 @@ model:
 
 
 datamodule:
-  _target_: src.datamodules.baby_dect_datamodule.BabyDectDataModule
+  _target_: src.datamodules.baby_dect_datamodule_test.BabyDectDataModule
   batch_size: 2
-
-trainer:
-  max_epochs: 150
-
 
 logger:
   wandb:

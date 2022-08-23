@@ -13,10 +13,16 @@ net:
   in_channels: 1
   classes: 2
 
-class_weight: [0.01, 0.99]
+loss_func:
+  _target_: torch.nn.CrossEntropyLoss
+  weight:
+    _target_: torch.Tensor
+    data: [0.01, 0.99]
+    
+
 
 eval_img_path: ${paths.log_dir}/tmp
 
 log_train_img: false
-log_eval_img: true
+log_val_img: true
 log_test_img: true
