@@ -1,7 +1,16 @@
-_target_: src.datamodules.baby_datamodule.BabyDataModule
+_target_: src.datamodules.baby_dect_datamodule.BabyDectDataModule
 data_dir: ${paths.data_dir}
 batch_size: 4
 num_workers: 8
 pin_memory: False
 image_max_size: [960, 1728]
 white_pixel: [253, 231, 36, 255]
+augment: 
+  _target_: torchvision.transforms.transforms.Compose
+  transforms: [
+    # {_target_: torchvision.transforms.transforms.ToTensor},
+    {_target_: torchvision.transforms.transforms.Normalize,
+    mean: [0.1307],
+    std: [0.3081]},
+    # {_target_: torchvision.transforms.transforms.ToTensor},
+  ]
