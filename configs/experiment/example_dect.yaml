@@ -4,7 +4,7 @@
 # python train.py experiment=example
 
 defaults:
-  - override /datamodule: baby.yaml
+  - override /datamodule: baby_dect.yaml
   - override /model: baby_dect_resnet.yaml
   - override /callbacks: default.yaml
   - override /trainer: gpu.yaml
