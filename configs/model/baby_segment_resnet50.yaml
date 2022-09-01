@@ -18,6 +18,7 @@ net:
   encoder_weights: imagenet
   in_channels: 1
   classes: 2
+  decoder_use_batchnorm: false
 
 loss_func:
   _target_: torch.nn.CrossEntropyLoss

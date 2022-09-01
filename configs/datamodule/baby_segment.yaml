@@ -41,5 +41,23 @@ augmentations: [
           p: 1.0,
         },
       ]
-    }
+    },
+    {
+      _target_: torchvision.transforms.transforms.Compose,
+      transforms: [
+        {
+          _target_: torchvision.transforms.RandomRotation,
+          degrees: 90
+        },
+      ]
+    },
+    {
+      _target_: torchvision.transforms.transforms.Compose,
+      transforms: [
+        {
+          _target_: torchvision.transforms.RandomErasing,
+          p: 1.0,
+        }
+      ]
+    },
 ]

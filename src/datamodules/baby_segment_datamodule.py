@@ -14,6 +14,21 @@ from torchvision.transforms import transforms
 
 from .baby_datamodule import BabyDataModule
 
+class BabyTupleDataset(torch.utils.data.Dataset):
+    def __init__(self, *tuples: Tuple[torch.Tensor]):
+        """
+        tuples: tuple of tensors (channel x h x w)
+        """
+        assert all(len(tuples[0]) == len(t) for t in tuples), "Size mismatch between tensors"
+        self.tuples = tuples
+
+    def __getitem__(self, idx):
+        return tuple(t[idx] for t in self.tuples)
+
+    def __len__(self):
+        return len(self.tuples[0])
+
+
 class BabySegmentDataModule(BabyDataModule):
     """LightningDataModule for Baby dataset, with point detection.
     """
@@ -52,36 +67,42 @@ class BabySegmentDataModule(BabyDataModule):
         """
         X, y = [], []
         for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "images/*")), desc=f"Loading images from {data_dir}"):
-            X.append(self.read_image(path, convert_x_greyscale).float()/255)
+            X.append(self.read_image(path, convert_x_greyscale)/255)
         
         for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "label/*")), desc=f"Loading labels from {data_dir}"):
             y.append(self.read_label(path))
 
-        X_tensor = torch.stack(X)
-        y_tensor = torch.stack(y)
         if augment:
-            augmented_tensors = self.augment_tensors(torch.stack([X_tensor, y_tensor]))
-            augmented_tensors = augmented_tensors.view((
-                augmented_tensors.shape[1], 
-                augmented_tensors.shape[0],
-                *augmented_tensors.shape[2:]
-            ))
-            augmented_X = augmented_tensors[0]
-            augmented_X = augmented_X.view((
-                augmented_X.shape[0]*augmented_X.shape[1],
-                *augmented_X.shape[2:]
-            ))
-            augmented_y = augmented_tensors[1]
-            augmented_y = augmented_y.view((
-                augmented_y.shape[0]*augmented_y.shape[1],
-                *augmented_y.shape[2:]
-            ))
-            # augmented_X = torch.cat([t[0] for t in augmented_tensors], dim=0)
-            # augmented_y = torch.cat([t[1] for t in augmented_tensors], dim=0)
-            import IPython ; IPython.embed()
-            return torch.utils.data.TensorDataset(augmented_X, augmented_y)
+            # X_tensor = torch.stack(X)
+            # y_tensor = torch.stack(y)
+            # augmented_tensors = self.augment_tensors(torch.stack([X_tensor, y_tensor]))
+            # augmented_tensors = augmented_tensors.view((
+            #     augmented_tensors.shape[1], 
+            #     augmented_tensors.shape[0],
+            #     *augmented_tensors.shape[2:]
+            # ))
+            # augmented_X = augmented_tensors[0]
+            # augmented_X = augmented_X.view((
+            #     augmented_X.shape[0]*augmented_X.shape[1],
+            #     *augmented_X.shape[2:]
+            # ))
+            # augmented_y = augmented_tensors[1]
+            # augmented_y = augmented_y.view((
+            #     augmented_y.shape[0]*augmented_y.shape[1],
+            #     *augmented_y.shape[2:]
+            # ))
+            # return torch.utils.data.TensorDataset(augmented_X, augmented_y)
+            augmented_X, augmented_y = [], []
+            for idx, x in enumerate(X):
+                augmented_tensors = self.augment_tensors(torch.stack((x, y[idx])))
+                for augmented_tensor in augmented_tensors:
+                    augmented_X.append(augmented_tensor[0])
+                    augmented_y.append(augmented_tensor[1])
+            # import IPython ; IPython.embed()
+            
+            return BabyTupleDataset(augmented_X, augmented_y)        
         else:
-            return torch.utils.data.TensorDataset(X_tensor, y_tensor)        
+            return BabyTupleDataset(X, y)        
 
 
 if __name__ == "__main__":

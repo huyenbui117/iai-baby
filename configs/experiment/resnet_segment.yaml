@@ -14,7 +14,7 @@ defaults:
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["baby_small", "resnet_50"]
+tags: ["baby", "resnet_50"]
 
 seed: 12345
 
@@ -22,13 +22,13 @@ model:
   optimizer:
     lr: 0.001
 
-  log_train_img: true
+  log_train_img: false
   log_val_img: true
   log_test_img: true
 
 
 datamodule:
-  batch_size: 1
+  batch_size: 2
 
 trainer:
   max_epochs: 100
@@ -37,8 +37,8 @@ trainer:
 logger:
   wandb:
     tags: ${tags}
-    group: "baby_small_segment"
-    name: "unet+resnet_50"
+    group: "baby_segment"
+    name: "unet+resnet_50+noaugment"
 
 paths:
-  data_dir: ${paths.root_dir}/data/baby_small
+  data_dir: ${paths.root_dir}/data/baby

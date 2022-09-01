@@ -125,14 +125,18 @@ class BabyDataModule(LightningDataModule):
         return label_tensor
 
 
-    def augment_tensors(self, tensors):
+    def augment_tensors(self, tensors: torch.Tensor):
+        """
+        tensors: Tuple of tensors shaped (channel x h x w)
+        Return list of tensors augmented from tensors
+        """
         augmented_tensors = [
             transform(tensors)
-            for transform in self.augmentations   
+            for transform in self.augmentations
         ]
         augmented_tensors.append(tensors)
 
-        return torch.stack(augmented_tensors)
+        return augmented_tensors
 
 
     def setup(self, stage: Optional[str] = None):
