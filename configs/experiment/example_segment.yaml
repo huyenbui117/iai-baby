@@ -29,6 +29,8 @@ model:
 
 datamodule:
   batch_size: 1
+  lazy_load: true
+  augmentations: []
 
 trainer:
   max_epochs: 100

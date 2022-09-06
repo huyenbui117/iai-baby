@@ -5,6 +5,7 @@ num_workers: 8
 pin_memory: False
 image_max_size: [960, 1728]
 white_pixel: [253, 231, 36, 255]
+lazy_load: false
 
 # List of preprocess
 # The preprocess will be applied to the original image first and foremost

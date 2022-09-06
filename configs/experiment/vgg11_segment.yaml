@@ -39,8 +39,8 @@ trainer:
 logger:
   wandb:
     tags: ${tags}
-    group: "baby_small_segment"
-    name: "unet+vgg11+augment"
+    group: "baby_segment"
+    name: "unet+vgg11+augment+resizesmall"
 
 paths:
-  data_dir: ${paths.root_dir}/data/baby_small
+  data_dir: ${paths.root_dir}/data/baby

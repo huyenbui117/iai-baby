@@ -52,7 +52,8 @@ class BabyDataModule(LightningDataModule):
         num_workers: int = 0,
         pin_memory: bool = False,
         image_max_size: Tuple[int, int] = (960, 1728),
-        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255)
+        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
+        lazy_load: bool = False,
     ):
         super().__init__()
 
@@ -64,6 +65,7 @@ class BabyDataModule(LightningDataModule):
         self.image_preprocessor = image_preprocessor
         self.label_preprocessor = label_preprocessor
         self.augmentations = augmentations
+        self.lazy_load = lazy_load
 
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
@@ -93,7 +95,6 @@ class BabyDataModule(LightningDataModule):
         pad_sequence = [l, u, r, d]
         return pad_sequence
 
-
     def read_image(self, img_path, greyscale=False):
         """
         Read image from path as rgb
@@ -106,12 +107,12 @@ class BabyDataModule(LightningDataModule):
 
         transform = transforms.Compose([
             transforms.PILToTensor(),
-            transforms.Pad(self.get_pad_sequence(image.width, image.height, self.hparams.image_max_size[1], self.hparams.image_max_size[0]))
+            transforms.Pad(self.get_pad_sequence(image.width, image.height, self.hparams.image_max_size[1], self.hparams.image_max_size[0])),
+            # transforms.Resize((320, 544))
         ])
         img_tensor = transform(image)
 
         return img_tensor
-
 
     def read_label(self, img_path):
         """ Read label image and convert to greyscale
@@ -147,9 +148,9 @@ class BabyDataModule(LightningDataModule):
         """
         print("Setup baby", self.hparams.data_dir)
 
-        self.data_train = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "train"), augment = True)
-        self.data_val = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "val"))
-        self.data_test = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "test"), convert_x_greyscale=True)
+        self.data_train = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "train"), augment = True, lazy_load=self.lazy_load)
+        self.data_val = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "val"), lazy_load=self.lazy_load)
+        self.data_test = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "test"), greyscale=True, lazy_load=self.lazy_load)
 
         self.loader_train = DataLoader(
             dataset=self.data_train,

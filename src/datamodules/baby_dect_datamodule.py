@@ -66,7 +66,7 @@ class BabyDectDataModule(BabyDataModule):
         return torch.stack((rows_tensor, cols_tensor), dim=-1)
 
 
-    def load_data_from_dir(self, data_dir, convert_x_greyscale=False, augment=False):
+    def load_data_from_dir(self, data_dir, greyscale=False, augment=False):
         """Load data from directory
 
         This method load images from directory and return data as sequence.
@@ -79,7 +79,7 @@ class BabyDectDataModule(BabyDataModule):
         X, y1, y2 = [], [], []
 
         for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "images/*")), desc=f"Loading images from {data_dir}"):
-            _x = self.read_image(path, convert_x_greyscale).float()/255
+            _x = self.read_image(path, greyscale).float()/255
             if self.image_preprocessor:
                 _x = self.image_preprocessor(_x)
                 

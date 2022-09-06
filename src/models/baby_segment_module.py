@@ -111,9 +111,9 @@ class BabySegmentLitModule(BabyLitModule):
         # preds shape   :   (batch_size x h x w)
         # targets shape :   (batch_size x h x w)
         acc = self.train_acc(preds, targets) 
-        precision = self.train_acc(preds, targets) 
+        precision = self.train_precision(preds, targets) 
         recall = self.train_recall(preds, targets) 
-        f1 = self.train_acc(preds, targets) 
+        f1 = self.train_f1(preds, targets) 
         iou = self.train_iou(preds, targets)[1]
 
         self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
@@ -168,12 +168,8 @@ class BabySegmentLitModule(BabyLitModule):
         iou = self.val_iou.compute()  # get val iou from current epoch
         f1 = self.val_f1.compute()  # get val f1 from current epoch
         
-        self.val_iou_best.update(iou)
-        self.log("val/f1_best", self.val_f1_best.compute(), on_epoch=True, prog_bar=True)
-
-        self.val_f1_best.update(f1)
-        self.log("val/f1_best", self.val_f1_best.compute(), on_epoch=True, prog_bar=True)
-
+        self.log("val/iou_best", iou[1], on_epoch=True, prog_bar=True)
+        self.log("val/f1_best", f1, on_epoch=True, prog_bar=True)
         self.log_images("val/images", outputs)
         
         self.val_iou.reset()
