@@ -13,115 +13,60 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
 
+from .baby_datamodule import BabyDataModule
 
-class BabyDectDataModule(LightningDataModule):
-    """Example of LightningDataModule for MNIST dataset.
-
-    A DataModule implements 5 key methods:
-
-        def prepare_data(self):
-            # things to do on 1 GPU/TPU (not on every GPU/TPU in DDP)
-            # download data, pre-process, split, save to disk, etc...
-        def setup(self, stage):
-            # things to do on every process in DDP
-            # load data, set variables, etc...
-        def train_dataloader(self):
-            # return train dataloader
-        def val_dataloader(self):
-            # return validation dataloader
-        def test_dataloader(self):
-            # return test dataloader
-        def teardown(self):
-            # called on every process in DDP
-            # clean up after fit or test
-
-    This allows you to share a full dataset without explaining how to download,
-    split, transform and process the data.
-
-    Read the docs:
-        https://pytorch-lightning.readthedocs.io/en/latest/extensions/datamodules.html
+class BabyDectDataModule(BabyDataModule):
+    """LightningDataModule for Baby dataset, with point detection.
     """
 
     def __init__(
         self,
         data_dir: str = "data/",
-        augment: transforms.Compose=transforms.Compose([]),
-        train_val_test_split: Tuple[int, int, int] = (55_000, 5_000, 10_000),
+        image_preprocessor: transforms.Compose=transforms.Compose([]),
+        label_preprocessor: transforms.Compose=transforms.Compose([]),
+        augmentations: Tuple[transforms.Compose, ...]=(transforms.Compose([]),),
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
         image_max_size: Tuple[int, int] = (960, 1728),
         white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255)
     ):
-        super().__init__()
+        super().__init__(
+            data_dir=data_dir,
+            image_preprocessor=image_preprocessor,
+            label_preprocessor=label_preprocessor,
+            augmentations=augmentations,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            image_max_size=image_max_size,
+            white_pixel=white_pixel
+        )
 
-        # this line allows to access init params wit[transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]h 'self.hpimage_max_siarams' attribute
-        # also ensures init params will be stored in ckpt
-        self.save_hyperparameters(logger=False)
 
-        # data transformations
-        self.transforms = augment
-        self.data_train: Optional[Dataset] = None
-        self.data_val: Optional[Dataset] = None
-        self.data_test: Optional[Dataset] = None
-        # self.augment = augment
-        
-    def prepare_data(self):
-        """Download data if needed.
-
-        Do not use it to assign state (self.x = y).
+    def calculate_central_mass(self, imgs: torch.Tensor) -> torch.Tensor:
         """
-        pass
-
-
-    def get_pad_sequence(self, img_width, img_height, pad_width, pad_height):
+        Return the central position point of a label binary map
+        - t: input tensor (b x h x w)
+        Return tensors: normalized centroid (b x 2)
         """
-        Return the pad sequence needed to pad from (img_width, img_height) -> (pad_width, pad_height)
-        """
-        horizontal, vertical = pad_width-img_width, pad_height-img_height
+        rows, cols = [], []
+        for t in imgs:
+            r, c = 0, 0
+            index = (t == 1).nonzero().float()
+            
+            r = index[:,0].mean()/t.shape[0]
+            c = index[:,1].mean()/t.shape[1]
+            
+            rows.append(r)
+            cols.append(c)
         
-        l = horizontal // 2
-        r = l + horizontal % 2
-        
-        u = vertical // 2
-        d = u + vertical % 2
-        
-        pad_sequence = [l, u, r, d]
-        return pad_sequence
+        rows_tensor = torch.stack(rows)
+        cols_tensor = torch.stack(cols)
+        return torch.stack((rows_tensor, cols_tensor), dim=-1)
 
 
-    def read_image(self, img_path, greyscale=False):
-        """
-        Read image from path as rgb
-        Return tensor(3 x w x h): RGB image tensor
-        """
-        image = Image.open(img_path)
-        
-        if greyscale:
-            image = ImageOps.grayscale(image)
-
-        transform = transforms.Compose([
-            transforms.PILToTensor(),
-            transforms.Pad(self.get_pad_sequence(image.width, image.height, self.hparams.image_max_size[1], self.hparams.image_max_size[0]))
-        ])
-        img_tensor = transform(image)
-        
-        return img_tensor
-
-
-    def read_label(self, img_path):
-        """ Read label image and convert to greyscale
-        
-        Return tensor(1 x w x h): Greyscale image tensor
-        """
-        img_tensor = self.read_image(img_path)
-        
-        label_tensor = torch.all(img_tensor.permute(1,2,0) == torch.tensor(self.hparams.white_pixel), dim=-1).unsqueeze(0)
-
-        return label_tensor
-
-
-    def load_data_from_dir(self, data_dir, convert_x_greyscale=False, augment = False):
+    def load_data_from_dir(self, data_dir, greyscale=False, augment=False):
         """Load data from directory
 
         This method load images from directory and return data as sequence.
@@ -133,96 +78,33 @@ class BabyDectDataModule(LightningDataModule):
         """
         X, y1, y2 = [], [], []
 
-        path_to_coords = {}
-
-        with open(os.path.join(data_dir, "central_mass.txt")) as mass_file:
-            reader = csv.reader(mass_file, delimiter=",")
-            next(reader, None)  # skip the headers
-            for row in reader:
-                file_id = row[0].split("/")[-1]
-                path_to_coords[file_id] = torch.tensor([float(row[1]), float(row[2])])
-
         for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "images/*")), desc=f"Loading images from {data_dir}"):
-            _x = self.read_image(path, convert_x_greyscale)
-            if augment:
-                _x= self.transforms(_x.float())
+            _x = self.read_image(path, greyscale).float()/255
+            if self.image_preprocessor:
+                _x = self.image_preprocessor(_x)
+                
             X.append(_x)
         
         for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "label/*")), desc=f"Loading labels from {data_dir}"):
             _y1 = self.read_label(path)
-            if augment:
-                _y1 = self.transforms(_y1.float())
+            if self.label_preprocessor:
+                _y1 = self.label_preprocessor(_y1)
+            
             y1.append(_y1)
             file_id = path.split("/")[-1]
-            y2.append(path_to_coords[file_id])
 
-        return torch.utils.data.TensorDataset(torch.stack(X), torch.stack(y1), torch.stack(y2))
-        # return torch.utils.data.TensorDataset(torch.stack(X).float(), torch.stack(y).float())
+            # y2.append(path_to_coords[file_id])
 
+        X_tensor = torch.stack(X)
+        y1_tensor = torch.stack(y1)
 
-    def setup(self, stage: Optional[str] = None):
-        """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
-
-        This method is called by lightning with both `trainer.fit()` and `trainer.test()`, so be
-        careful not to execute things like random split twice!
-        """
-        print("Setup baby", self.hparams.data_dir)
-
-        self.data_train = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "train"), augment = True)
-        self.data_val = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "val"))
-        self.data_test = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "test"), convert_x_greyscale=True)
-
-        self.loader_train = DataLoader(
-            dataset=self.data_train,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-            shuffle=True,
-        )
-        self.loader_val = DataLoader(
-            dataset=self.data_val,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-            shuffle=False,
-        )
-        self.loader_test = DataLoader(
-            dataset=self.data_test,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers,
-            pin_memory=self.hparams.pin_memory,
-            shuffle=False,
-        )
+        if augment:
+            augmented_tensors = self.augment_tensors(torch.stack([X_tensor, y1_tensor]))
+            augmented_X = torch.cat([t[0] for t in augmented_tensors], dim=0)
+            augmented_y1 = torch.cat([t[1] for t in augmented_tensors], dim=0)
+            augmented_y2 = self.calculate_central_mass(augmented_y1[:,0,:,:])
+            return torch.utils.data.TensorDataset(augmented_X, augmented_y1, augmented_y2)
+        else:
+            y2_tensor = self.calculate_central_mass(y1_tensor[:,0,:,:])
+            return torch.utils.data.TensorDataset(X_tensor, y1_tensor, y2_tensor)        
         
-
-    def train_dataloader(self):
-        return self.loader_train
-
-    def val_dataloader(self):
-        return self.loader_val
-
-    def test_dataloader(self):
-        return self.loader_test
-
-    def teardown(self, stage: Optional[str] = None):
-        """Clean up after fit or test."""
-        pass
-
-    def state_dict(self):
-        """Extra things to save to checkpoint."""
-        return {}
-
-    def load_state_dict(self, state_dict: Dict[str, Any]):
-        """Things to do when loading checkpoint."""
-        pass
-
-
-if __name__ == "__main__":
-    import hydra
-    import omegaconf
-    import pyrootutils
-
-    root = pyrootutils.setup_root(__file__, pythonpath=True)
-    cfg = omegaconf.OmegaConf.load(root / "configs" / "datamodule" / "mnist.yaml")
-    cfg.data_dir = str(root / "data")
-    _ = hydra.utils.instantiate(cfg)

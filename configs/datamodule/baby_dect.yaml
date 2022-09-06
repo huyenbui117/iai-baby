@@ -1,0 +1,46 @@
+_target_: src.datamodules.baby_dect_datamodule.BabyDectDataModule
+data_dir: ${paths.data_dir}
+batch_size: 4
+num_workers: 8
+pin_memory: False
+image_max_size: [960, 1728]
+white_pixel: [253, 231, 36, 255]
+
+# List of preprocess
+# The preprocess will be applied to the original image first and foremost
+image_preprocessor: 
+  _target_: torchvision.transforms.transforms.Compose
+  transforms: [
+    # {
+    #   _target_: torchvision.transforms.transforms.Normalize,
+    #   mean: [0.1307],
+    #   std: [0.3081]
+    # },
+  ]
+label_preprocessor: null 
+
+# List of augmentations
+# The transformed dataset will have the additional images
+# For example, if transforms = [{transformA}, {transformB}],
+# then the final images will have (..., originalImageX, transformA(originalImageX), transformB(originalImageY), ...)
+# In the point detection model, this should be null
+augmentations: [
+    {
+      _target_: torchvision.transforms.transforms.Compose,
+      transforms: [
+        {
+          _target_: torchvision.transforms.RandomHorizontalFlip,
+          p: 1.0
+        },
+      ]
+    },
+    {
+      _target_: torchvision.transforms.transforms.Compose,
+      transforms: [
+        {
+          _target_: torchvision.transforms.RandomVerticalFlip,
+          p: 1.0,
+        },
+      ]
+    }
+]

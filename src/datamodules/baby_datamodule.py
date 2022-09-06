@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional, Tuple
 
+import csv
 import glob
 import os
 from PIL import Image, ImageOps
@@ -12,9 +13,8 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
 
-
 class BabyDataModule(LightningDataModule):
-    """Example of LightningDataModule for MNIST dataset.
+    """LightningDataModule for Baby dataset, with point detection.
 
     A DataModule implements 5 key methods:
 
@@ -44,23 +44,28 @@ class BabyDataModule(LightningDataModule):
     def __init__(
         self,
         data_dir: str = "data/",
+        image_preprocessor: transforms.Compose=transforms.Compose([]),
+        label_preprocessor: transforms.Compose=transforms.Compose([]),
+        augmentations: Tuple[transforms.Compose, ...]=(transforms.Compose([]),),
         train_val_test_split: Tuple[int, int, int] = (55_000, 5_000, 10_000),
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
         image_max_size: Tuple[int, int] = (960, 1728),
-        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255)
+        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
+        lazy_load: bool = False,
     ):
         super().__init__()
 
-        # this line allows to access init params with 'self.hpimage_max_siarams' attribute
+        # this line allows to access init params wit[transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]h 'self.hpimage_max_siarams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
         # data transformations
-        self.transforms = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
+        self.image_preprocessor = image_preprocessor
+        self.label_preprocessor = label_preprocessor
+        self.augmentations = augmentations
+        self.lazy_load = lazy_load
 
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
@@ -90,7 +95,6 @@ class BabyDataModule(LightningDataModule):
         pad_sequence = [l, u, r, d]
         return pad_sequence
 
-
     def read_image(self, img_path, greyscale=False):
         """
         Read image from path as rgb
@@ -103,13 +107,12 @@ class BabyDataModule(LightningDataModule):
 
         transform = transforms.Compose([
             transforms.PILToTensor(),
-            transforms.Pad(self.get_pad_sequence(image.width, image.height, self.hparams.image_max_size[1], self.hparams.image_max_size[0]))
+            transforms.Pad(self.get_pad_sequence(image.width, image.height, self.hparams.image_max_size[1], self.hparams.image_max_size[0])),
+            # transforms.Resize((320, 544))
         ])
-
         img_tensor = transform(image)
-        
-        return img_tensor
 
+        return img_tensor
 
     def read_label(self, img_path):
         """ Read label image and convert to greyscale
@@ -123,22 +126,18 @@ class BabyDataModule(LightningDataModule):
         return label_tensor
 
 
-    def load_data_from_dir(self, data_dir, convert_x_greyscale=False):
-        """Load data from directory
-
-        This method load images from directory and return data as sequence.
-        Used for baby data loading
-        Return TensorDataset[tuple(x, y)]
+    def augment_tensors(self, tensors: torch.Tensor):
         """
-        X, y = [], []
-        for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "images/*")), desc=f"Loading images from {data_dir}"):
-            X.append(self.read_image(path, convert_x_greyscale))
-        
-        for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "label/*")), desc=f"Loading labels from {data_dir}"):
-            y.append(self.read_label(path))
-        
-        return torch.utils.data.TensorDataset(torch.stack(X), torch.stack(y))
-        # return torch.utils.data.TensorDataset(torch.stack(X).float(), torch.stack(y).float())
+        tensors: Tuple of tensors shaped (channel x h x w)
+        Return list of tensors augmented from tensors
+        """
+        augmented_tensors = [
+            transform(tensors)
+            for transform in self.augmentations
+        ]
+        augmented_tensors.append(tensors)
+
+        return augmented_tensors
 
 
     def setup(self, stage: Optional[str] = None):
@@ -149,9 +148,9 @@ class BabyDataModule(LightningDataModule):
         """
         print("Setup baby", self.hparams.data_dir)
 
-        self.data_train = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "train"))
-        self.data_val = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "val"))
-        self.data_test = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "test"), convert_x_greyscale=True)
+        self.data_train = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "train"), augment = True, lazy_load=self.lazy_load)
+        self.data_val = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "val"), lazy_load=self.lazy_load)
+        self.data_test = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "test"), greyscale=True, lazy_load=self.lazy_load)
 
         self.loader_train = DataLoader(
             dataset=self.data_train,
@@ -175,8 +174,6 @@ class BabyDataModule(LightningDataModule):
             shuffle=False,
         )
         
-        # import IPython; IPython.embed()
-
 
     def train_dataloader(self):
         return self.loader_train
@@ -198,14 +195,3 @@ class BabyDataModule(LightningDataModule):
     def load_state_dict(self, state_dict: Dict[str, Any]):
         """Things to do when loading checkpoint."""
         pass
-
-
-if __name__ == "__main__":
-    import hydra
-    import omegaconf
-    import pyrootutils
-
-    root = pyrootutils.setup_root(__file__, pythonpath=True)
-    cfg = omegaconf.OmegaConf.load(root / "configs" / "datamodule" / "mnist.yaml")
-    cfg.data_dir = str(root / "data")
-    _ = hydra.utils.instantiate(cfg)

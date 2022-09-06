@@ -30,8 +30,6 @@ def main(cfg: DictConfig) -> float:
         metric_dict=metric_dict, metric_name=cfg.get("optimized_metric")
     )
 
-    import IPython ; IPython.embed()
-
     # return optimized metric
     return metric_value
 

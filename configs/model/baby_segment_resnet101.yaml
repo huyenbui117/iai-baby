@@ -1,4 +1,4 @@
-_target_: src.models.baby_module.BabyLitModule
+_target_: src.models.baby_segment_module.BabyLitModule
 
 optimizer:
   _target_: torch.optim.Adam
