@@ -108,7 +108,7 @@ class BabyDataModule(LightningDataModule):
         transform = transforms.Compose([
             transforms.PILToTensor(),
             transforms.Pad(self.get_pad_sequence(image.width, image.height, self.hparams.image_max_size[1], self.hparams.image_max_size[0])),
-            # transforms.Resize((320, 544))
+            transforms.Resize((320, 544))
         ])
         img_tensor = transform(image)
 
@@ -148,10 +148,21 @@ class BabyDataModule(LightningDataModule):
         """
         print("Setup baby", self.hparams.data_dir)
 
-        self.data_train = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "train"), augment = True, lazy_load=self.lazy_load)
-        self.data_val = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "val"), lazy_load=self.lazy_load)
-        self.data_test = self.load_data_from_dir(os.path.join(self.hparams.data_dir, "test"), greyscale=True, lazy_load=self.lazy_load)
-
+        self.data_train = self.load_data_from_dir(
+            os.path.join(self.hparams.data_dir, "train"), 
+            augment = True, 
+            lazy_load=self.lazy_load
+        )
+        self.data_val = self.load_data_from_dir(
+            os.path.join(self.hparams.data_dir, "val"), 
+            lazy_load=self.lazy_load
+        )
+        self.data_test = self.load_data_from_dir(
+            os.path.join(self.hparams.data_dir, "test"), 
+            greyscale=True, 
+            lazy_load=self.lazy_load
+        )
+        
         self.loader_train = DataLoader(
             dataset=self.data_train,
             batch_size=self.hparams.batch_size,

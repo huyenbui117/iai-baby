@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List
 
 import glob
 import random
@@ -31,20 +31,29 @@ class BabyTupleDataset(torch.utils.data.Dataset):
 
 
 class BabyLazyLoadDataset(torch.utils.data.Dataset):
-    def __init__(self, img_paths, label_paths, data_module_obj=None, greyscale=False):
+    def __init__(self, 
+        img_paths: List[str], 
+        label_paths: List[str], 
+        augment: bool = False, 
+        data_module_obj: BabyDataModule = None, 
+        greyscale: bool = False
+    ):
         self.img_paths = img_paths
         self.label_paths = label_paths
+        self.augment = augment
         self.data_module_obj = data_module_obj
         self.greyscale = greyscale
     
     def __getitem__(self, idx):
         img = self.data_module_obj.read_image(self.img_paths[idx], greyscale=self.greyscale)/255
         label = self.data_module_obj.read_label(self.label_paths[idx])
+
+        if not self.augment:
+            return (img, label)
         
         augmented_imgs = self.data_module_obj.augment_tensors(img)
         augmented_labels = self.data_module_obj.augment_tensors(label)
 
-        return (img, label)
         return (random.choice(augmented_imgs), random.choice(augmented_labels))
 
 
@@ -96,9 +105,9 @@ class BabySegmentDataModule(BabyDataModule):
 
         if lazy_load:
             if augment:
-                return BabyLazyLoadDataset(img_paths, label_paths, data_module_obj=self, greyscale=greyscale)
+                return BabyLazyLoadDataset(img_paths, label_paths, augment=augment, data_module_obj=self, greyscale=greyscale)
             else:
-                return BabyLazyLoadDataset(img_paths, label_paths, data_module_obj=self, greyscale=greyscale)
+                return BabyLazyLoadDataset(img_paths, label_paths, augment=augment, data_module_obj=self, greyscale=greyscale)
         else:
             X, y = [], []
             for path in tqdm.tqdm(img_paths, desc=f"Loading images from {data_dir}"):

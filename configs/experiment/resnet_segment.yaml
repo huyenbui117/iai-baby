@@ -14,13 +14,13 @@ defaults:
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["baby", "resnet_50", "noaugment"]
+tags: ["baby", "resnet_50"]
 
 seed: 12345
 
 model:
   optimizer:
-    lr: 0.003
+    lr: 0.001
 
   log_train_img: false
   log_val_img: true
@@ -28,20 +28,19 @@ model:
 
 
 datamodule:
-  batch_size: 2
-  lazy_load: true
-  # augmentations: []
+  batch_size: 16
+  augmentations: []
 
 trainer:
-  max_epochs: 300
-  accumulate_grad_batches: 32
+  max_epochs: 100
+  accumulate_grad_batches: 8
 
 
 logger:
   wandb:
     tags: ${tags}
     group: "baby_segment"
-    name: "unet+resnet50+resize+noaugment"
+    name: "unet+resnet50+resize+noaugment+normimg"
 
 paths:
   data_dir: ${paths.root_dir}/data/baby

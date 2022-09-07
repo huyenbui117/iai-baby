@@ -2,10 +2,10 @@ _target_: src.datamodules.baby_segment_datamodule.BabySegmentDataModule
 data_dir: ${paths.data_dir}
 batch_size: 4
 num_workers: 8
-pin_memory: False
+pin_memory: false
 image_max_size: [960, 1728]
 white_pixel: [253, 231, 36, 255]
-lazy_load: false
+lazy_load: true
 
 # List of preprocess
 # The preprocess will be applied to the original image first and foremost
@@ -14,8 +14,10 @@ image_preprocessor:
   transforms: [
     {
       _target_: torchvision.transforms.transforms.Normalize,
-      mean: [0.1307],
-      std: [0.3081]
+      # mean: [0.1307],
+      # std: [0.3081],
+      mean: [0.5],
+      std: [0.3],
     },
   ]
 label_preprocessor: null
@@ -30,7 +32,7 @@ augmentations: [
       transforms: [
         {
           _target_: torchvision.transforms.RandomHorizontalFlip,
-          p: 1.0
+          p: 0.5
         },
       ]
     },
@@ -39,7 +41,7 @@ augmentations: [
       transforms: [
         {
           _target_: torchvision.transforms.RandomVerticalFlip,
-          p: 1.0,
+          p: 0.5,
         },
       ]
     },
@@ -52,13 +54,13 @@ augmentations: [
         },
       ]
     },
-    {
-      _target_: torchvision.transforms.transforms.Compose,
-      transforms: [
-        {
-          _target_: torchvision.transforms.RandomErasing,
-          p: 1.0,
-        }
-      ]
-    },
+    # {
+    #   _target_: torchvision.transforms.transforms.Compose,
+    #   transforms: [
+    #     {
+    #       _target_: torchvision.transforms.RandomErasing,
+    #       p: 1.0,
+    #     }
+    #   ]
+    # },
 ]

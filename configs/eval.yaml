@@ -2,10 +2,10 @@
 
 defaults:
   - _self_
-  - datamodule: baby.yaml # choose datamodule with `test_dataloader()` for evaluation
-  - model: baby.yaml
-  - logger: null
-  - trainer: default.yaml
+  - datamodule: baby_segment.yaml # choose datamodule with `test_dataloader()` for evaluation
+  - model: baby_segment_resnet50.yaml
+  - logger: wandb.yaml
+  - trainer: gpu.yaml
   - paths: default.yaml
   - extras: default.yaml
   - hydra: default.yaml
@@ -15,4 +15,5 @@ task_name: "eval"
 tags: ["dev"]
 
 # passing checkpoint path is necessary for evaluation
-ckpt_path: ${paths.log_dir}/train/runs/2022-08-21_08-47-24/checkpoints/last.ckpt
+ckpt_path: ${paths.log_dir}/train/runs/2022-09-06_11-52-22/checkpoints/epoch_017.ckpt
+# ckpt_path: ${paths.log_dir}/train/runs/2022-09-06_11-41-27/checkpoints/last.ckpt

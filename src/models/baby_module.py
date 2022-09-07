@@ -1,5 +1,6 @@
 from typing import Any, List
 import os
+import random
 import shutil
 import torch
 from pytorch_lightning import LightningModule
@@ -72,12 +73,20 @@ class BabyLitModule(LightningModule):
         }
 
     
-    def log_images(self, log_key: str, outputs: List[Any]):
+    def log_images(self, 
+        log_key: str, 
+        outputs: List[Any], 
+        log_ratio: float = .2
+    ):
         # `outputs` is a list of dicts returned from `training_step()`
         img_log_paths = [path for output in outputs for path in output["img_log_paths"]]
         if len(img_log_paths) > 0 and self.logger is not None:
-            self.logger.log_image(log_key, img_log_paths)
-
+            if log_ratio is None or log_ratio >= 1:
+                # log all images
+                self.logger.log_image(log_key, img_log_paths)
+            else:
+                div_factor = int(1/log_ratio)
+                self.logger.log_image(log_key, [path for idx, path in enumerate(img_log_paths) if idx % div_factor == 0])
 
     def validation_step(self, batch: Any, batch_idx: int):
         loss, preds, targets = self.step(batch)
