@@ -79,6 +79,7 @@ class BabySegmentLitModule(BabyLitModule):
         preds = torch.argmax(logits, dim=1)
         y = y.squeeze(1).long()
         loss = self.criterion(logits, y)
+
         return loss, preds, y
 
 

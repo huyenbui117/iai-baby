@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List, Union
 
 import csv
 import glob
@@ -6,12 +6,13 @@ import os
 from PIL import Image, ImageOps
 import tqdm
 import gc
-
+import random
 import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
+
 
 class BabyDataModule(LightningDataModule):
     """LightningDataModule for Baby dataset, with point detection.
@@ -47,11 +48,11 @@ class BabyDataModule(LightningDataModule):
         image_preprocessor: transforms.Compose=transforms.Compose([]),
         label_preprocessor: transforms.Compose=transforms.Compose([]),
         augmentations: Tuple[transforms.Compose, ...]=(transforms.Compose([]),),
-        train_val_test_split: Tuple[int, int, int] = (55_000, 5_000, 10_000),
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
         image_max_size: Tuple[int, int] = (960, 1728),
+        resize_input: Union[Tuple[int, int], None] = None,
         white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
         lazy_load: bool = False,
     ):
@@ -66,6 +67,7 @@ class BabyDataModule(LightningDataModule):
         self.label_preprocessor = label_preprocessor
         self.augmentations = augmentations
         self.lazy_load = lazy_load
+        self.resize_input = resize_input
 
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
@@ -95,31 +97,43 @@ class BabyDataModule(LightningDataModule):
         pad_sequence = [l, u, r, d]
         return pad_sequence
 
-    def read_image(self, img_path, greyscale=False):
+    def read_image(self, img_path, greyscale=False, scale_factor=256):
         """
         Read image from path as rgb
-        Return tensor(3 x w x h): RGB image tensor
+        Return tensor(1 x w x h): RGB image tensor
         """
         image = Image.open(img_path)
         
         if greyscale:
             image = ImageOps.grayscale(image)
 
-        transform = transforms.Compose([
+        transformations = [
             transforms.PILToTensor(),
-            transforms.Pad(self.get_pad_sequence(image.width, image.height, self.hparams.image_max_size[1], self.hparams.image_max_size[0])),
-            transforms.Resize((320, 544))
-        ])
+            transforms.Pad(
+                self.get_pad_sequence(
+                    image.width, 
+                    image.height, 
+                    self.hparams.image_max_size[1], 
+                    self.hparams.image_max_size[0]
+                )
+            ),
+        ]
+        if self.resize_input:
+            transformations.append(transforms.Resize(self.resize_input))
+
+        transform = transforms.Compose(transformations)
+
         img_tensor = transform(image)
 
-        return img_tensor
+        return img_tensor/scale_factor
+
 
     def read_label(self, img_path):
         """ Read label image and convert to greyscale
         
         Return tensor(1 x w x h): Greyscale image tensor
         """
-        img_tensor = self.read_image(img_path)
+        img_tensor = self.read_image(img_path, scale_factor=1.)
         
         label_tensor = torch.all(img_tensor.permute(1,2,0) == torch.tensor(self.hparams.white_pixel), dim=-1).unsqueeze(0)
 
@@ -135,7 +149,7 @@ class BabyDataModule(LightningDataModule):
             transform(tensors)
             for transform in self.augmentations
         ]
-        augmented_tensors.append(tensors)
+        # augmented_tensors.append(tensors)
 
         return augmented_tensors
 
@@ -206,3 +220,57 @@ class BabyDataModule(LightningDataModule):
     def load_state_dict(self, state_dict: Dict[str, Any]):
         """Things to do when loading checkpoint."""
         pass
+
+
+
+class BabyTupleDataset(torch.utils.data.Dataset):
+    def __init__(self, *tuples: Tuple[torch.Tensor]):
+        """
+        tuples: tuple of tensors (channel x h x w)
+        """
+        assert all(len(tuples[0]) == len(t) for t in tuples), "Size mismatch between tensors"
+        self.tuples = tuples
+
+    def __getitem__(self, idx):
+        return tuple(t[idx] for t in self.tuples)
+
+    def __len__(self):
+        return len(self.tuples[0])
+
+
+class BabyLazyLoadDataset(torch.utils.data.Dataset):
+    def __init__(self, 
+        img_paths: List[str], 
+        label_paths: List[str], 
+        augment: bool = False, 
+        data_module_obj: BabyDataModule = None, 
+        greyscale: bool = False
+    ):
+        self.img_paths = img_paths
+        self.label_paths = label_paths
+        self.augment = augment
+        self.data_module_obj = data_module_obj
+        self.greyscale = greyscale
+    
+    def __getitem__(self, idx):
+        img = self.data_module_obj.read_image(self.img_paths[idx], greyscale=self.greyscale)
+        label = self.data_module_obj.read_label(self.label_paths[idx])
+
+        img = self.data_module_obj.image_preprocessor(img)
+        label = self.data_module_obj.label_preprocessor(label)
+
+        if not self.augment:
+            return (img, label)
+        
+        augmented_tensors = self.data_module_obj.augment_tensors(torch.stack([img, label]))
+
+        augmented_tensor = random.choice(augmented_tensors)
+
+        augmented_img = augmented_tensor[0]
+        augmented_label = augmented_tensor[1]
+
+        return augmented_img, augmented_label
+
+
+    def __len__(self):
+        return len(self.img_paths)
