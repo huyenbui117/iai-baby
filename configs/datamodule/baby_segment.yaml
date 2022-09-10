@@ -4,7 +4,7 @@ batch_size: 4
 num_workers: 8
 pin_memory: false
 image_max_size: [960, 1728]
-resize_input: [320, 544]
+resize_input: true
 white_pixel: [253, 231, 36, 255]
 lazy_load: true
 

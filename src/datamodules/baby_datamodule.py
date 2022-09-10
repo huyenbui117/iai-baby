@@ -118,8 +118,11 @@ class BabyDataModule(LightningDataModule):
                 )
             ),
         ]
-        if self.resize_input:
-            transformations.append(transforms.Resize(self.resize_input))
+        if self.hparams.resize_input:
+            transformations.append(
+                transforms.Resize([320, 544])
+                # transforms.Resize([self.hparams.resize_input[0], self.hparams.resize_input[1]])
+            )
 
         transform = transforms.Compose(transformations)
 
@@ -145,11 +148,13 @@ class BabyDataModule(LightningDataModule):
         tensors: Tuple of tensors shaped (channel x h x w)
         Return list of tensors augmented from tensors
         """
+        if len(self.augmentations) == 0:
+            return [tensors]
+
         augmented_tensors = [
             transform(tensors)
             for transform in self.augmentations
         ]
-        # augmented_tensors.append(tensors)
 
         return augmented_tensors
 

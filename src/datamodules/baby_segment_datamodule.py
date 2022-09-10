@@ -31,7 +31,7 @@ class BabySegmentDataModule(BabyDataModule):
         num_workers: int = 0,
         pin_memory: bool = False,
         image_max_size: Tuple[int, int] = (960, 1728),
-        resize_input: Union[Tuple[int, int], None] = None,
+        resize_input: Union[Tuple[int, int], None] = [320, 544],
         white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
         lazy_load: bool = False,
     ):
