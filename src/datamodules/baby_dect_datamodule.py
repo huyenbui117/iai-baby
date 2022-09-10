@@ -13,7 +13,7 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
 
-from .baby_datamodule import BabyDataModule
+from .baby_datamodule import BabyDataModule, BabyLazyLoadDataset
 
 class BabyDectDataModule(BabyDataModule):
     """LightningDataModule for Baby dataset, with point detection.
@@ -29,7 +29,8 @@ class BabyDectDataModule(BabyDataModule):
         num_workers: int = 0,
         pin_memory: bool = False,
         image_max_size: Tuple[int, int] = (960, 1728),
-        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255)
+        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
+        lazy_load: bool = False
     ):
         super().__init__(
             data_dir=data_dir,
@@ -40,7 +41,8 @@ class BabyDectDataModule(BabyDataModule):
             num_workers=num_workers,
             pin_memory=pin_memory,
             image_max_size=image_max_size,
-            white_pixel=white_pixel
+            white_pixel=white_pixel,
+            lazy_load=lazy_load
         )
 
 
@@ -66,45 +68,38 @@ class BabyDectDataModule(BabyDataModule):
         return torch.stack((rows_tensor, cols_tensor), dim=-1)
 
 
-    def load_data_from_dir(self, data_dir, greyscale=False, augment=False):
+    def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=False):
         """Load data from directory
 
         This method load images from directory and return data as sequence.
         Used for baby data loading
-        Return TensorDataset[tuple(x, y1, y2)]
-            - x: image
-            - y1: segmentation mask
-            - y2: centroid detection point
+        Return TensorDataset[tuple(x, y)]
         """
-        X, y1, y2 = [], [], []
 
-        for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "images/*")), desc=f"Loading images from {data_dir}"):
-            _x = self.read_image(path, greyscale).float()/255
-            if self.image_preprocessor:
-                _x = self.image_preprocessor(_x)
-                
-            X.append(_x)
-        
-        for path in tqdm.tqdm(glob.glob(os.path.join(data_dir, "label/*")), desc=f"Loading labels from {data_dir}"):
-            _y1 = self.read_label(path)
-            if self.label_preprocessor:
-                _y1 = self.label_preprocessor(_y1)
-            
-            y1.append(_y1)
-            file_id = path.split("/")[-1]
+        img_paths = glob.glob(os.path.join(data_dir, "images/*"))
+        label_paths = glob.glob(os.path.join(data_dir, "label/*"))
 
-            # y2.append(path_to_coords[file_id])
-
-        X_tensor = torch.stack(X)
-        y1_tensor = torch.stack(y1)
-
-        if augment:
-            augmented_tensors = self.augment_tensors(torch.stack([X_tensor, y1_tensor]))
-            augmented_X = torch.cat([t[0] for t in augmented_tensors], dim=0)
-            augmented_y1 = torch.cat([t[1] for t in augmented_tensors], dim=0)
-            augmented_y2 = self.calculate_central_mass(augmented_y1[:,0,:,:])
-            return torch.utils.data.TensorDataset(augmented_X, augmented_y1, augmented_y2)
+        if lazy_load:
+            if augment:
+                return BabyLazyLoadDataset(img_paths, label_paths, augment=augment, data_module_obj=self, greyscale=greyscale)
+            else:
+                return BabyLazyLoadDataset(img_paths, label_paths, augment=augment, data_module_obj=self, greyscale=greyscale)
         else:
-            y2_tensor = self.calculate_central_mass(y1_tensor[:,0,:,:])
-            return torch.utils.data.TensorDataset(X_tensor, y1_tensor, y2_tensor)        
-        
+            X, y = [], []
+            for path in tqdm.tqdm(img_paths, desc=f"Loading images from {data_dir}"):
+                X.append(self.read_image(path, greyscale))
+            
+            for path in tqdm.tqdm(label_paths, desc=f"Loading labels from {data_dir}"):
+                y.append(self.read_label(path))
+
+            if augment:
+                augmented_X, augmented_y = [], []
+                for idx, x in enumerate(X):
+                    augmented_tensors = self.augment_tensors(torch.stack((x, y[idx])))
+                    for augmented_tensor in augmented_tensors:
+                        augmented_X.append(augmented_tensor[0])
+                        augmented_y.append(augmented_tensor[1])
+                
+                return BabyTupleDataset(augmented_X, augmented_y)        
+            else:
+                return BabyTupleDataset(X, y)

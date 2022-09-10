@@ -79,6 +79,7 @@ class BabySegmentLitModule(BabyLitModule):
         preds = torch.argmax(logits, dim=1)
         y = y.squeeze(1).long()
         loss = self.criterion(logits, y)
+
         return loss, preds, y
 
 
@@ -167,9 +168,12 @@ class BabySegmentLitModule(BabyLitModule):
     def validation_epoch_end(self, outputs: List[Any]):
         iou = self.val_iou.compute()  # get val iou from current epoch
         f1 = self.val_f1.compute()  # get val f1 from current epoch
+
+        self.val_f1_best.update(f1)
+        self.val_iou_best.update(iou[1])
         
-        self.log("val/iou_best", iou[1], on_epoch=True, prog_bar=True)
-        self.log("val/f1_best", f1, on_epoch=True, prog_bar=True)
+        self.log("val/iou_best", self.val_iou_best.compute(), on_epoch=True, prog_bar=True)
+        self.log("val/f1_best", self.val_f1_best.compute(), on_epoch=True, prog_bar=True)
         self.log_images("val/images", outputs)
         
         self.val_iou.reset()

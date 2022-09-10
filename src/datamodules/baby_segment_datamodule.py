@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List, Union
 
 import glob
 import random
@@ -13,43 +13,8 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
 
-from .baby_datamodule import BabyDataModule
+from .baby_datamodule import BabyDataModule, BabyTupleDataset, BabyLazyLoadDataset
 
-class BabyTupleDataset(torch.utils.data.Dataset):
-    def __init__(self, *tuples: Tuple[torch.Tensor]):
-        """
-        tuples: tuple of tensors (channel x h x w)
-        """
-        assert all(len(tuples[0]) == len(t) for t in tuples), "Size mismatch between tensors"
-        self.tuples = tuples
-
-    def __getitem__(self, idx):
-        return tuple(t[idx] for t in self.tuples)
-
-    def __len__(self):
-        return len(self.tuples[0])
-
-
-class BabyLazyLoadDataset(torch.utils.data.Dataset):
-    def __init__(self, img_paths, label_paths, data_module_obj=None, greyscale=False):
-        self.img_paths = img_paths
-        self.label_paths = label_paths
-        self.data_module_obj = data_module_obj
-        self.greyscale = greyscale
-    
-    def __getitem__(self, idx):
-        img = self.data_module_obj.read_image(self.img_paths[idx], greyscale=self.greyscale)/255
-        label = self.data_module_obj.read_label(self.label_paths[idx])
-        
-        augmented_imgs = self.data_module_obj.augment_tensors(img)
-        augmented_labels = self.data_module_obj.augment_tensors(label)
-
-        return (img, label)
-        return (random.choice(augmented_imgs), random.choice(augmented_labels))
-
-
-    def __len__(self):
-        return len(self.img_paths)
 
 
 class BabySegmentDataModule(BabyDataModule):
@@ -66,6 +31,7 @@ class BabySegmentDataModule(BabyDataModule):
         num_workers: int = 0,
         pin_memory: bool = False,
         image_max_size: Tuple[int, int] = (960, 1728),
+        resize_input: Union[Tuple[int, int], None] = None,
         white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
         lazy_load: bool = False,
     ):
@@ -78,6 +44,7 @@ class BabySegmentDataModule(BabyDataModule):
             num_workers=num_workers,
             pin_memory=pin_memory,
             image_max_size=image_max_size,
+            resize_input=resize_input,
             white_pixel=white_pixel,
             lazy_load=lazy_load,
         )
@@ -95,17 +62,18 @@ class BabySegmentDataModule(BabyDataModule):
         label_paths = glob.glob(os.path.join(data_dir, "label/*"))
 
         if lazy_load:
-            if augment:
-                return BabyLazyLoadDataset(img_paths, label_paths, data_module_obj=self, greyscale=greyscale)
-            else:
-                return BabyLazyLoadDataset(img_paths, label_paths, data_module_obj=self, greyscale=greyscale)
+            return BabyLazyLoadDataset(img_paths, label_paths, augment=augment, data_module_obj=self, greyscale=greyscale)
         else:
             X, y = [], []
             for path in tqdm.tqdm(img_paths, desc=f"Loading images from {data_dir}"):
-                X.append(self.read_image(path, greyscale)/255)
+                _x = self.read_image(path, greyscale)
+                _x = self.image_preprocessor(_x)
+                X.append(_x)
             
             for path in tqdm.tqdm(label_paths, desc=f"Loading labels from {data_dir}"):
-                y.append(self.read_label(path))
+                _y = self.read_label(path)
+                _y = self.label_preprocessor(_y)
+                y.append(_y)
 
             if augment:
                 augmented_X, augmented_y = [], []

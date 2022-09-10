@@ -1,5 +1,5 @@
 # @package _global_
-
+# ~ 0.4 iou test
 # to execute this experiment run:
 # python train.py experiment=example_segment
 
@@ -21,7 +21,7 @@ seed: 12345
 callbacks:
   early_stopping:
     monitor: "val/loss"
-    patience: 250
+    patience: 100
   model_checkpoint:
     monitor: "val/iou"
 
@@ -36,7 +36,6 @@ model:
 
 datamodule:
   batch_size: 16
-  # augmentations: []
 
 trainer:
   max_epochs: 300
@@ -46,7 +45,7 @@ trainer:
 logger:
   wandb:
     tags: ${tags}
-    group: "baby/segment"
+    group: "official/segment/baby"
     name: "unet+resnet50+resize+augment+normimg"
 
 paths:

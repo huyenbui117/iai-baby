@@ -15,9 +15,9 @@ model_checkpoint:
   auto_insert_metric_name: False
 
 early_stopping:
-  monitor: "val/loss"
+  monitor: "val/iou"
   patience: 20
-  mode: "min"
+  mode: "max"
 
 model_summary:
   max_depth: -1
