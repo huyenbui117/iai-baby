@@ -4,6 +4,7 @@ batch_size: 4
 num_workers: 8
 pin_memory: false
 image_max_size: [960, 1728]
+resize_input: [320, 544]
 white_pixel: [253, 231, 36, 255]
 lazy_load: true
 
@@ -28,40 +29,26 @@ label_preprocessor:
 # For example, if transforms = [{transformA}, {transformB}],
 # then the final images will have (..., originalImageX, transformA(originalImageX), transformB(originalImageY), ...)
 augmentations: [
-    # {
-    #   _target_: torchvision.transforms.transforms.Compose,
-    #   transforms: [
-    #     {
-    #       _target_: torchvision.transforms.RandomHorizontalFlip,
-    #       p: 0.5
-    #     },
-    #   ]
-    # },
-    # {
-    #   _target_: torchvision.transforms.transforms.Compose,
-    #   transforms: [
-    #     {
-    #       _target_: torchvision.transforms.RandomVerticalFlip,
-    #       p: 0.5,
-    #     },
-    #   ]
-    # },
-    # {
-    #   _target_: torchvision.transforms.transforms.Compose,
-    #   transforms: [
-    #     {
-    #       _target_: torchvision.transforms.RandomRotation,
-    #       degrees: 90
-    #     },
-    #   ]
-    # },
-    # {
-    #   _target_: torchvision.transforms.transforms.Compose,
-    #   transforms: [
-    #     {
-    #       _target_: torchvision.transforms.RandomErasing,
-    #       p: 1.0,
-    #     }
-    #   ]
-    # },
+  {
+      _target_: torchvision.transforms.transforms.Compose,
+      transforms: [
+        {
+          _target_: src.datamodules.components.augmentations.MultiRandomErasing,
+          p: 0.9,
+          repeat: [5, 15]
+        },
+        {
+          _target_: torchvision.transforms.RandomHorizontalFlip,
+          p: 0.5
+        },
+        {
+          _target_: torchvision.transforms.RandomVerticalFlip,
+          p: 0.5,
+        },
+        {
+          _target_: torchvision.transforms.RandomRotation,
+          degrees: 5
+        },
+      ]
+    },
 ]
