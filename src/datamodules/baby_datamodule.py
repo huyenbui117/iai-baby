@@ -143,18 +143,30 @@ class BabyDataModule(LightningDataModule):
         return label_tensor
 
 
-    def augment_tensors(self, tensors: torch.Tensor):
+    def augment_tensors(self, img_tensor: torch.Tensor, label_tensor: torch.Tensor):
         """
-        tensors: Tuple of tensors shaped (channel x h x w)
-        Return list of tensors augmented from tensors
+        img_tensor: Tuple of tensors shaped (channel x h x w)
+        label_tensor: Tuple of tensors shaped (channel x h x w)
+        Return: List[(augmented_img_tensor, augmented_label_tensor)] 
+        list of tensors augmented from tensors
         """
         if len(self.augmentations) == 0:
-            return [tensors]
+            return [(img_tensor, label_tensor)]
+        
+        augmented_tensors = []
 
-        augmented_tensors = [
-            transform(tensors)
-            for transform in self.augmentations
-        ]
+        for transforms in self.augmentations:
+            aug_img_tensor, aug_label_tensor = img_tensor.clone(), label_tensor.clone()
+            for transform, apply_to_image, apply_to_label in transforms:
+                if apply_to_image and apply_to_label: 
+                    aug_img_tensor, aug_label_tensor = transform(
+                        torch.stack((aug_img_tensor, aug_label_tensor))
+                    )
+                elif apply_to_image:
+                    aug_img_tensor = transform(aug_img_tensor)
+                elif apply_to_label:
+                    aug_label_tensor = transform(aug_label_tensor)
+            augmented_tensors.append((aug_img_tensor, aug_label_tensor))
 
         return augmented_tensors
 

@@ -20,9 +20,9 @@ class BabyDectLitModule(BabyLitModule):
         lr_scheduler_monitor: str = None,
         loss_func: torch.nn.CrossEntropyLoss=None,
         eval_img_path: str = "./tmp",
-        log_train_img: bool = True,
-        log_val_img: bool = True,
-        log_test_img: bool = True,
+        log_train_img: float = 0.2,
+        log_val_img: float = 1.,
+        log_test_img: float = 1.,
     ):
         super().__init__(
             net=net,

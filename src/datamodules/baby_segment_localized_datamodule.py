@@ -67,7 +67,8 @@ class BabyLazyLoadLocalizedDataset(BabyLazyLoadDataset):
         if not self.augment:
             return (img, label)
         
-        augmented_tensors = self.data_module_obj.augment_tensors(torch.stack([img, label]))
+        # augmented_tensors = self.data_module_obj.augment_tensors(torch.stack([img, label]))
+        augmented_tensors = self.data_module_obj.augment_tensors(img, label)
 
         augmented_tensor = random.choice(augmented_tensors)
 
