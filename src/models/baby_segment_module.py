@@ -20,9 +20,9 @@ class BabySegmentLitModule(BabyLitModule):
         lr_scheduler_monitor: str = None,
         loss_func: torch.nn.CrossEntropyLoss = None,
         eval_img_path: str = "./tmp",
-        log_train_img: bool = True,
-        log_val_img: bool = True,
-        log_test_img: bool = True,
+        log_train_img: float = 0.2,
+        log_val_img: float = 1.,
+        log_test_img: float = 1.,
     ):
         super().__init__(
             net=net,
@@ -124,7 +124,7 @@ class BabySegmentLitModule(BabyLitModule):
         self.log("train/f1", f1, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train/iou", iou, on_step=False, on_epoch=True, prog_bar=True)
 
-        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="train") if self.log_train_img else []
+        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="train") if self.log_train_img > 0 else []
 
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
@@ -136,7 +136,7 @@ class BabySegmentLitModule(BabyLitModule):
 
 
     def training_epoch_end(self, outputs: List[Any]):
-        self.log_images("train/images", outputs)
+        self.log_images("train/images", outputs, log_ratio=self.log_train_img)
         self.train_acc.reset()
 
 
@@ -157,7 +157,7 @@ class BabySegmentLitModule(BabyLitModule):
         self.log("val/f1", f1, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val/iou", iou, on_step=False, on_epoch=True, prog_bar=True)
 
-        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="val") if self.log_val_img else []
+        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="val") if self.log_val_img > 0 else []
         
         return {
             "loss": loss,
@@ -174,7 +174,7 @@ class BabySegmentLitModule(BabyLitModule):
         
         self.log("val/iou_best", self.val_iou_best.compute(), on_epoch=True, prog_bar=True)
         self.log("val/f1_best", self.val_f1_best.compute(), on_epoch=True, prog_bar=True)
-        self.log_images("val/images", outputs)
+        self.log_images("val/images", outputs, log_ratio=self.log_val_img)
         
         self.val_iou.reset()
         self.val_f1.reset()
@@ -197,7 +197,7 @@ class BabySegmentLitModule(BabyLitModule):
         self.log("test/f1", f1, on_step=False, on_epoch=True)
         self.log("test/iou", iou, on_step=False, on_epoch=True)
 
-        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="test") if self.log_val_img else []
+        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="test") if self.log_val_img > 0 else []
 
         return {
             "loss": loss,
@@ -206,7 +206,7 @@ class BabySegmentLitModule(BabyLitModule):
 
 
     def test_epoch_end(self, outputs: List[Any]):
-        self.log_images("test/images", outputs)
+        self.log_images("test/images", outputs, log_ratio=self.log_test_img)
 
         self.test_acc.reset()
 

@@ -15,7 +15,7 @@ lr_scheduler_monitor: "val/loss"
 net:
   _target_: segmentation_models_pytorch.Unet
   encoder_name: resnet50
-  encoder_weights:  
+  encoder_weights: imagenet
   in_channels: 1
   classes: 2
   decoder_use_batchnorm: false

@@ -37,9 +37,9 @@ model:
       data: [0.15, 0.85]
     label_smoothing: 0.01
 
-  log_train_img: true
-  log_val_img: true
-  log_test_img: true
+  log_train_img: 0.1
+  log_val_img: 1.
+  log_test_img: 1.
 
 
 datamodule:

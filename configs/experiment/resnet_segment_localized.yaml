@@ -22,7 +22,7 @@ seed: 12345
 callbacks:
   early_stopping:
     monitor: "val/iou"
-    patience: 150
+    patience: 50
   model_checkpoint:
     monitor: "val/iou"
 
@@ -37,7 +37,7 @@ model:
       data: [0.15, 0.85]
     label_smoothing: 0.01
 
-  log_train_img: true
+  log_train_img: false
   log_val_img: true
   log_test_img: true
 
@@ -47,7 +47,7 @@ datamodule:
   # augmentations: []
 
 trainer:
-  max_epochs: 300
+  max_epochs: 150
   accumulate_grad_batches: 8
 
 
