@@ -58,4 +58,4 @@ logger:
     name: "unet+resnet50+augment"
 
 paths:
-  data_dir: ${paths.root_dir}/data/baby
+  data_dir: ${paths.root_dir}/data/baby_small

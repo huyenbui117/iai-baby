@@ -30,10 +30,12 @@ class BabySegmentDataModule(BabyDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
+        padding: bool = True,
         image_max_size: Tuple[int, int] = (960, 1728),
-        resize_input: Union[Tuple[int, int], None] = [320, 544],
+        resize_input: Union[Tuple[int, int], None] = None,
         white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
         lazy_load: bool = False,
+        pred_boxes_path: Union[str, None] = None
     ):
         super().__init__(
             data_dir=data_dir,
@@ -43,11 +45,13 @@ class BabySegmentDataModule(BabyDataModule):
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=pin_memory,
+            padding=padding,
             image_max_size=image_max_size,
             resize_input=resize_input,
             white_pixel=white_pixel,
             lazy_load=lazy_load,
         )
+        self.pred_boxes_path = pred_boxes_path
 
 
     def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=False):
@@ -62,7 +66,14 @@ class BabySegmentDataModule(BabyDataModule):
         label_paths = glob.glob(os.path.join(data_dir, "label/*"))
 
         if lazy_load:
-            return BabyLazyLoadDataset(img_paths, label_paths, augment=augment, data_module_obj=self, greyscale=greyscale)
+            return BabyLazyLoadDataset(
+                img_paths, 
+                label_paths, 
+                augment=augment, 
+                data_module_obj=self, 
+                greyscale=greyscale,
+                pred_boxes_path=self.pred_boxes_path
+            )
         else:
             X, y = [], []
             for path in tqdm.tqdm(img_paths, desc=f"Loading images from {data_dir}"):

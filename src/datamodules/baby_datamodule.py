@@ -1,5 +1,7 @@
 from typing import Any, Dict, Optional, Tuple, List, Union
 
+import json
+from collections import defaultdict
 import csv
 import glob
 import os
@@ -51,6 +53,7 @@ class BabyDataModule(LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
+        padding: bool = True,
         image_max_size: Tuple[int, int] = (960, 1728),
         resize_input: Union[Tuple[int, int], None] = None,
         white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
@@ -67,6 +70,7 @@ class BabyDataModule(LightningDataModule):
         self.label_preprocessor = label_preprocessor
         self.augmentations = augmentations
         self.lazy_load = lazy_load
+        self.padding = padding
         self.resize_input = resize_input
 
         self.data_train: Optional[Dataset] = None
@@ -109,15 +113,20 @@ class BabyDataModule(LightningDataModule):
 
         transformations = [
             transforms.PILToTensor(),
-            transforms.Pad(
-                self.get_pad_sequence(
-                    image.width, 
-                    image.height, 
-                    self.hparams.image_max_size[1], 
-                    self.hparams.image_max_size[0]
-                )
-            ),
         ]
+
+        if self.padding:
+            transformations.append(
+                transforms.Pad(
+                    self.get_pad_sequence(
+                        image.width, 
+                        image.height, 
+                        self.hparams.image_max_size[1], 
+                        self.hparams.image_max_size[0]
+                    )
+                )
+            )
+
         if self.hparams.resize_input:
             transformations.append(
                 transforms.Resize([320, 544])
@@ -260,33 +269,59 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         img_paths: List[str], 
         label_paths: List[str], 
         augment: bool = False, 
+        padding: bool = True,
         data_module_obj: BabyDataModule = None, 
-        greyscale: bool = False
+        greyscale: bool = False,
+        pred_boxes_path: Union[str, None] = None
     ):
         self.img_paths = img_paths
         self.label_paths = label_paths
         self.augment = augment
         self.data_module_obj = data_module_obj
         self.greyscale = greyscale
-    
+
+        self.pred_boxes_path = pred_boxes_path
+        if pred_boxes_path is not None:
+            self.imgid_to_boxes = defaultdict(lambda: [])
+            with open(pred_boxes_path) as fin:
+                boxes = json.load(fin)
+                for box in boxes:
+                    self.imgid_to_boxes[box["image_id"]].append(box)
+            for key in self.imgid_to_boxes:
+                self.imgid_to_boxes[key] = sorted(
+                    self.imgid_to_boxes[key],
+                    key=lambda box: box["score"],
+                    reverse=True
+                )
+
+
     def __getitem__(self, idx):
         img = self.data_module_obj.read_image(self.img_paths[idx], greyscale=self.greyscale)
         label = self.data_module_obj.read_label(self.label_paths[idx])
 
         img = self.data_module_obj.image_preprocessor(img)
         label = self.data_module_obj.label_preprocessor(label)
+        
+        extras = []
+        if self.pred_boxes_path:
+            image_id = os.path.basename(self.img_paths[idx]).split(".")[0]
+            boxes = self.imgid_to_boxes[image_id]
+            extras.extend([
+                torch.tensor(boxes[0]["bbox"]),
+                torch.tensor(boxes[0]["score"]),
+            ])
 
         if not self.augment:
-            return (img, label)
+            return (img, label, *extras)
         
-        augmented_tensors = self.data_module_obj.augment_tensors(torch.stack([img, label]))
+        augmented_tensors = self.data_module_obj.augment_tensors(img, label)
 
         augmented_tensor = random.choice(augmented_tensors)
 
         augmented_img = augmented_tensor[0]
         augmented_label = augmented_tensor[1]
 
-        return augmented_img, augmented_label
+        return augmented_img, augmented_label, *extras
 
 
     def __len__(self):

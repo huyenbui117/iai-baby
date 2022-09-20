@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Union, Callable
 import os
 import random
 import shutil
@@ -27,6 +27,7 @@ class BabyLitModule(LightningModule):
         self,
         net: segmentation_models_pytorch.Unet = None,
         optimizer: torch.optim.Optimizer = None,
+        postprocessor: Union[Callable, None] = None,
         lr_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
         lr_scheduler_monitor: str = None,
         loss_func: torch.nn.CrossEntropyLoss = None,
@@ -45,6 +46,7 @@ class BabyLitModule(LightningModule):
         self.log_test_img = log_test_img
         
         self.net = net
+        self.postprocessor = postprocessor
 
         # loss function
         # self.criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(class_weight))

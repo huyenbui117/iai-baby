@@ -4,22 +4,15 @@ batch_size: 4
 num_workers: 8
 pin_memory: false
 image_max_size: [960, 1728]
-resize_input: true
 white_pixel: [253, 231, 36, 255]
 lazy_load: true
+pred_boxes_path: ${paths.data_dir}/yolo_bbox_preds.json
 
 # List of preprocess
 # The preprocess will be applied to the original image first and foremost
 image_preprocessor:
   _target_: torchvision.transforms.transforms.Compose
-  transforms: [
-    # {
-    #   _target_: torchvision.transforms.Normalize,
-    #   mean: [0.1307],
-    #   std: [0.3081]
-    # },
-  ]
-
+  transforms: []
 label_preprocessor: 
   _target_: torchvision.transforms.transforms.Compose
   transforms: []
@@ -28,6 +21,7 @@ label_preprocessor:
 # The transformed dataset will have the additional images
 # For example, if transforms = [{transformA}, {transformB}],
 # then the final images will have (..., originalImageX, transformA(originalImageX), transformB(originalImageY), ...)
+# Format: [[AugmentObject, applyToImage, applyToLabel]]
 augmentations: [
   [
     [{

@@ -25,7 +25,7 @@ def test_mnist_datamodule(batch_size):
     assert num_datapoints == 70_000
 
     batch = next(iter(dm.train_dataloader()))
-    x, y = batch
+    x, y, *args = batch
     assert len(x) == batch_size
     assert len(y) == batch_size
     assert x.dtype == torch.float32

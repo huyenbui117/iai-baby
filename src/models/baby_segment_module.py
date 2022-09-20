@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Union, Callable
 import os
 import torch
 from pytorch_lightning import LightningModule
@@ -16,6 +16,7 @@ class BabySegmentLitModule(BabyLitModule):
         self,
         net: segmentation_models_pytorch.Unet,
         optimizer: torch.optim.Optimizer,
+        postprocessor: Union[Callable, None] = None,
         lr_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
         lr_scheduler_monitor: str = None,
         loss_func: torch.nn.CrossEntropyLoss = None,
@@ -26,6 +27,7 @@ class BabySegmentLitModule(BabyLitModule):
     ):
         super().__init__(
             net=net,
+            postprocessor=postprocessor,
             optimizer=optimizer,
             lr_scheduler=lr_scheduler,
             lr_scheduler_monitor=lr_scheduler_monitor,
@@ -73,12 +75,15 @@ class BabySegmentLitModule(BabyLitModule):
 
 
     def step(self, batch: Any):
-        x, y = batch
-
+        x, y, *args = batch
+        
         logits = self.forward(x)
         preds = torch.argmax(logits, dim=1)
         y = y.squeeze(1).long()
         loss = self.criterion(logits, y)
+
+        if self.postprocessor is not None:
+            preds = self.postprocessor(preds)
 
         return loss, preds, y
 
