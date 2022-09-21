@@ -27,7 +27,7 @@ loss_func:
     data: [0.01, 0.99]
   label_smoothing: 0.01
     
-
+postprocessor: null
 
 eval_img_path: ${paths.log_dir}/tmp
 

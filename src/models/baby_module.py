@@ -47,7 +47,7 @@ class BabyLitModule(LightningModule):
         
         self.net = net
         self.postprocessor = postprocessor
-
+        
         # loss function
         # self.criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(class_weight))
         self.criterion = loss_func

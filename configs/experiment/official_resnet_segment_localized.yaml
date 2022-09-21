@@ -29,6 +29,8 @@ callbacks:
 model:
   optimizer:
     lr: 0.001
+  postprocessor: 
+    _target_: src.models.postprocess.largest_connected_component.MaxAreaProcessor
 
   loss_func:
     _target_: torch.nn.CrossEntropyLoss
@@ -58,4 +60,4 @@ logger:
     name: "unet+resnet50+augment"
 
 paths:
-  data_dir: ${paths.root_dir}/data/baby_small
+  data_dir: ${paths.root_dir}/data/baby
