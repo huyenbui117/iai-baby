@@ -101,7 +101,7 @@ class BabyDataModule(LightningDataModule):
         pad_sequence = [l, u, r, d]
         return pad_sequence
 
-    def read_image(self, img_path, greyscale=False, scale_factor=256):
+    def read_image(self, img_path, greyscale=False, scale_factor=255):
         """
         Read image from path as rgb
         Return tensor(1 x w x h): RGB image tensor
@@ -139,6 +139,11 @@ class BabyDataModule(LightningDataModule):
 
         return img_tensor/scale_factor
 
+    
+    def read_head_label(self, img_path):
+        label_tensor = self.read_image(img_path, scale_factor=255.)
+        return label_tensor
+
 
     def read_label(self, img_path):
         """ Read label image and convert to greyscale
@@ -168,9 +173,11 @@ class BabyDataModule(LightningDataModule):
             aug_img_tensor, aug_label_tensor = img_tensor.clone(), label_tensor.clone()
             for transform, apply_to_image, apply_to_label in transforms:
                 if apply_to_image and apply_to_label: 
-                    aug_img_tensor, aug_label_tensor = transform(
-                        torch.stack((aug_img_tensor, aug_label_tensor))
+                    img_idx = aug_img_tensor.shape[0]
+                    concat_tensor = transform(
+                        torch.cat((aug_img_tensor, aug_label_tensor), dim=0)
                     )
+                    aug_img_tensor, aug_label_tensor = concat_tensor[:img_idx], concat_tensor[img_idx:]
                 elif apply_to_image:
                     aug_img_tensor = transform(aug_img_tensor)
                 elif apply_to_label:
@@ -269,11 +276,20 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         img_paths: List[str], 
         label_paths: List[str], 
         augment: bool = False, 
-        padding: bool = True,
         data_module_obj: BabyDataModule = None, 
         greyscale: bool = False,
         pred_boxes_path: Union[str, None] = None
     ):
+        """Dataset for baby
+
+        Args:
+            img_paths (List[str]): path of images
+            label_paths (List[str]): path of NT mask
+            augment (bool, optional): Augment the read images or not. Defaults to False.
+            data_module_obj (BabyDataModule, optional): The data module object to use important functions. Defaults to None.
+            greyscale (bool, optional): Convert to greyscale or not. Defaults to False.
+            pred_boxes_path (Union[str, None], optional): The path to bounding box prediction. Set to true to return localized region of NT. Defaults to None.
+        """
         self.img_paths = img_paths
         self.label_paths = label_paths
         self.augment = augment
@@ -293,7 +309,7 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
                     key=lambda box: box["score"],
                     reverse=True
                 )
-
+        
 
     def __getitem__(self, idx):
         img = self.data_module_obj.read_image(self.img_paths[idx], greyscale=self.greyscale)
@@ -303,6 +319,12 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         label = self.data_module_obj.label_preprocessor(label)
         
         extras = []
+
+        if self.head_label_paths:
+            head_label_mask = self.data_module_obj.read_head_label(self.head_label_paths[idx])
+            head_label_mask = self.data_module_obj.label_preprocessor(head_label_mask)
+            extras.extend([head_label_mask])
+
         if self.pred_boxes_path:
             image_id = os.path.basename(self.img_paths[idx]).split(".")[0]
             boxes = self.imgid_to_boxes[image_id]

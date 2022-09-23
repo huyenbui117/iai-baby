@@ -75,28 +75,7 @@ class BabySegmentDataModule(BabyDataModule):
                 pred_boxes_path=self.pred_boxes_path
             )
         else:
-            X, y = [], []
-            for path in tqdm.tqdm(img_paths, desc=f"Loading images from {data_dir}"):
-                _x = self.read_image(path, greyscale)
-                _x = self.image_preprocessor(_x)
-                X.append(_x)
-            
-            for path in tqdm.tqdm(label_paths, desc=f"Loading labels from {data_dir}"):
-                _y = self.read_label(path)
-                _y = self.label_preprocessor(_y)
-                y.append(_y)
-
-            if augment:
-                augmented_X, augmented_y = [], []
-                for idx, x in enumerate(X):
-                    augmented_tensors = self.augment_tensors(torch.stack((x, y[idx])))
-                    for augmented_tensor in augmented_tensors:
-                        augmented_X.append(augmented_tensor[0])
-                        augmented_y.append(augmented_tensor[1])
-                
-                return BabyTupleDataset(augmented_X, augmented_y)        
-            else:
-                return BabyTupleDataset(X, y)
+            raise("Not implemented")
 
 
 if __name__ == "__main__":

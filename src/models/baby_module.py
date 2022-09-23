@@ -82,7 +82,7 @@ class BabyLitModule(LightningModule):
     ):
         # `outputs` is a list of dicts returned from `training_step()`
         img_log_paths = [path for output in outputs for path in output["img_log_paths"]]
-        if len(img_log_paths) > 0 and self.logger is not None:
+        if len(img_log_paths) > 0 and self.logger is not None and hasattr(self.logger, "log_image"):
             if log_ratio is None or log_ratio >= 1:
                 # log all images
                 self.logger.log_image(log_key, img_log_paths)

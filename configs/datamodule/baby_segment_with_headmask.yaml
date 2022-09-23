@@ -1,0 +1,68 @@
+_target_: src.datamodules.baby_segment_with_headmask_datamodule.BabySegmentWithHeadMaskDataModule
+data_dir: ${paths.data_dir}
+batch_size: 4
+num_workers: 8
+pin_memory: false
+image_max_size: [960, 1728]
+resize_input: true
+white_pixel: [253, 231, 36, 255]
+lazy_load: true
+
+# List of preprocess
+# The preprocess will be applied to the original image first and foremost
+image_preprocessor:
+  _target_: torchvision.transforms.transforms.Compose
+  transforms: []
+
+label_preprocessor: 
+  _target_: torchvision.transforms.transforms.Compose
+  transforms: []
+
+# List of augmentations
+# The transformed dataset will have the additional images
+# For example, if transforms = [{transformA}, {transformB}],
+# then the final images will have (..., originalImageX, transformA(originalImageX), transformB(originalImageY), ...)
+# augmentations: [
+#   [
+#     [{
+#       _target_: src.datamodules.components.augmentations.MultiRandomErasing,
+#       p: 0.5,
+#       repeat: [5, 15]
+#     }, true, false],
+#     [{
+#       _target_: torchvision.transforms.RandomHorizontalFlip,
+#       p: 0.5,
+#     }, true, true],
+#         [{
+#       _target_: torchvision.transforms.RandomVerticalFlip,
+#       p: 0.5,
+#     }, true, true],
+#         [{
+#       _target_: torchvision.transforms.RandomRotation,
+#       degrees: 5,
+#     }, true, true],
+#   ],
+# ]
+augmentations:
+-
+  -
+    - _target_: src.datamodules.components.augmentations.MultiRandomErasing
+      p: 0.5
+      repeat: [5, 15]
+    - true
+    - false
+  -
+    - _target_: torchvision.transforms.RandomHorizontalFlip
+      p: 0.5
+    - true
+    - true
+  - 
+    - _target_: torchvision.transforms.RandomVerticalFlip
+      p: 0.5
+    - true
+    - true
+  - 
+    - _target_: torchvision.transforms.RandomRotation
+      degrees: 5
+    - true
+    - true
