@@ -60,6 +60,7 @@ class BabyLitModule(LightningModule):
     def forward(self, x: torch.Tensor):
         return self.net(x)
 
+
     def training_step(self, batch: Any, batch_idx: int):
         loss, preds, targets = self.step(batch)
 
@@ -90,7 +91,11 @@ class BabyLitModule(LightningModule):
                 div_factor = int(1/log_ratio)
                 self.logger.log_image(log_key, [path for idx, path in enumerate(img_log_paths) if idx % div_factor == 0])
 
+    def on_validation_epoch_start(self) -> None:
+        return super().on_validation_epoch_start()
+
     def validation_step(self, batch: Any, batch_idx: int):
+
         loss, preds, targets = self.step(batch)
 
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
@@ -101,7 +106,6 @@ class BabyLitModule(LightningModule):
             "loss": loss,
             "img_log_paths": img_log_paths
         }
-
 
     def test_step(self, batch: Any, batch_idx: int):
         loss, preds, targets = self.step(batch)

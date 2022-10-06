@@ -1,6 +1,7 @@
 import hydra
 import pyrootutils
 from omegaconf import DictConfig
+from pytorch_lightning import LightningModule
 
 root = pyrootutils.setup_root(__file__, dotenv=True, pythonpath=True)
 
@@ -9,7 +10,7 @@ root = pyrootutils.setup_root(__file__, dotenv=True, pythonpath=True)
 def main(cfg: DictConfig) -> None:
 
     from src.tasks.eval_task import evaluate
-
+    
     evaluate(cfg)
 
 

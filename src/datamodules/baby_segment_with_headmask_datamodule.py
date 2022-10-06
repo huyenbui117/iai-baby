@@ -21,10 +21,6 @@ class BabyLazyLoadSegmentWithHeadMaskDataset(BabyLazyLoadDataset):
         label = self.data_module_obj.read_label(self.label_paths[idx])
         label_head = self.data_module_obj.read_head_label(self.head_label_paths[idx])
 
-        img = self.data_module_obj.image_preprocessor(img)
-        label = self.data_module_obj.label_preprocessor(label)
-        label_head = self.data_module_obj.label_preprocessor(label_head)
-        
         if not self.augment:
             return (img, label, label_head)
         

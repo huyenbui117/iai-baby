@@ -28,6 +28,8 @@ callbacks:
 model:
   optimizer:
     lr: 0.001
+  postprocessor: 
+    _target_: src.models.postprocess.largest_connected_component.MaxAreaProcessor
 
   log_train_img: 0.1
   log_val_img: 1.

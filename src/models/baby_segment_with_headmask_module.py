@@ -10,17 +10,22 @@ class BabySegmentWithHeadMaskLitModule(BabySegmentLitModule):
 
     def __init__(
         self,
+        head_output_auxilary=False,
         **kwargs
     ):
         super().__init__(
             **kwargs
         )
-
+        self.head_output_auxilary = head_output_auxilary
 
     def step(self, batch: Any):
         x, y, y_head = batch
-
-        logits = self.forward(torch.cat((x, y_head), dim=1))
+        
+        if self.head_output_auxilary:
+            pass
+        else:
+            logits = self.forward(torch.cat((x, y_head), dim=1))
+        # import IPython ; IPython.embed()
         preds = torch.argmax(logits, dim=1)
         y = y.squeeze(1).long()
         loss = self.criterion(logits, y)

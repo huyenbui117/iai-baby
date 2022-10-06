@@ -70,17 +70,23 @@ class BabySegmentLitModule(BabyLitModule):
     def on_train_start(self):
         # by default lightning executes validation step sanity checks before training starts,
         # so we need to make sure val_iou_best doesn't store accuracy from these checks
+        self.net.train()
         self.val_f1_best.reset()
         self.val_iou_best.reset()
 
 
     def step(self, batch: Any):
         x, y, *args = batch
-        
+
         logits = self.forward(x)
+
+        # # TODO: Recheck this. Why adding sigmoid improve loss?
+        # logits = torch.nn.functional.sigmoid(logits)
+
         preds = torch.argmax(logits, dim=1)
         y = y.squeeze(1).long()
         loss = self.criterion(logits, y)
+
 
         if self.postprocessor is not None:
             preds = self.postprocessor(preds)
@@ -111,6 +117,8 @@ class BabySegmentLitModule(BabyLitModule):
 
 
     def training_step(self, batch: Any, batch_idx: int):
+        if not self.net.training:
+            self.net.train()
         loss, preds, targets = self.step(batch)
 
         # log train metrics
@@ -143,9 +151,16 @@ class BabySegmentLitModule(BabyLitModule):
     def training_epoch_end(self, outputs: List[Any]):
         self.log_images("train/images", outputs, log_ratio=self.log_train_img)
         self.train_acc.reset()
+        return super().training_epoch_end(outputs)
+
+    def on_validation_epoch_start(self) -> None:
+        self.net.eval()
+        return super().on_validation_epoch_start()
 
 
     def validation_step(self, batch: Any, batch_idx: int):
+        if self.net.training:
+            self.net.eval()
         loss, preds, targets = self.step(batch)
 
         # log val metrics
@@ -184,8 +199,12 @@ class BabySegmentLitModule(BabyLitModule):
         self.val_iou.reset()
         self.val_f1.reset()
 
+        return super().validation_epoch_end(outputs)
+
 
     def test_step(self, batch: Any, batch_idx: int):
+        if self.net.training:
+            self.net.eval()
         loss, preds, targets = self.step(batch)
 
         # log test metrics
@@ -214,6 +233,8 @@ class BabySegmentLitModule(BabyLitModule):
         self.log_images("test/images", outputs, log_ratio=self.log_test_img)
 
         self.test_acc.reset()
+
+        return super().test_epoch_end(outputs)
 
 
 if __name__ == "__main__":

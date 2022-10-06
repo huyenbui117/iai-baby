@@ -150,3 +150,7 @@ data/
 logs/
 .env
 .autoenv
+
+inference/*.png
+ckpt
+src/inference

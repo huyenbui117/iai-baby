@@ -4,11 +4,11 @@ import hydra
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.loggers import LightningLoggerBase
+import torch
 
 from src import utils
 
 log = utils.get_pylogger(__name__)
-
 
 @utils.task_wrapper
 def evaluate(cfg: DictConfig) -> Tuple[dict, dict]:

@@ -5,7 +5,7 @@
 
 defaults:
   - override /datamodule: baby_segment.yaml
-  - override /model: baby_segment_resnet50.yaml
+  - override /model: baby_segment_deeplabv3plus_efficientnet-b8.yaml
   - override /callbacks: default.yaml
   - override /trainer: gpu.yaml
   - override /paths: default.yaml
@@ -28,6 +28,8 @@ callbacks:
 model:
   optimizer:
     lr: 0.001
+  # postprocessor: 
+  #   _target_: src.models.postprocess.largest_connected_component.MaxAreaProcessor
 
   log_train_img: 0.1
   log_val_img: 1.
@@ -35,18 +37,18 @@ model:
 
 
 datamodule:
-  batch_size: 16
+  batch_size: 2
 
 trainer:
   max_epochs: 150
-  accumulate_grad_batches: 64
+  accumulate_grad_batches: 32
 
 
 logger:
   wandb:
     tags: ${tags}
     group: "test/segment/baby"
-    name: "unet+resnet50+augment"
+    name: "unet+deeplabv3plus+timm-efficientnet-b8+augment"
 
 paths:
   data_dir: ${paths.root_dir}/data/baby02

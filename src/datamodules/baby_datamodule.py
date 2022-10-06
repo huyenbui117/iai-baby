@@ -101,7 +101,12 @@ class BabyDataModule(LightningDataModule):
         pad_sequence = [l, u, r, d]
         return pad_sequence
 
-    def read_image(self, img_path, greyscale=False, scale_factor=255):
+    def read_image(self, 
+        img_path, 
+        greyscale=False, 
+        scale_factor=255,
+        preprocess=True
+    ):
         """
         Read image from path as rgb
         Return tensor(1 x w x h): RGB image tensor
@@ -111,48 +116,56 @@ class BabyDataModule(LightningDataModule):
         if greyscale:
             image = ImageOps.grayscale(image)
 
-        transformations = [
-            transforms.PILToTensor(),
-        ]
+        # transformations = [
+        #     transforms.PILToTensor(),
+        # ]
 
-        if self.padding:
-            transformations.append(
-                transforms.Pad(
-                    self.get_pad_sequence(
-                        image.width, 
-                        image.height, 
-                        self.hparams.image_max_size[1], 
-                        self.hparams.image_max_size[0]
-                    )
-                )
-            )
+        # if self.padding:
+        #     transformations.append(
+        #         transforms.Pad(
+        #             self.get_pad_sequence(
+        #                 image.width, 
+        #                 image.height, 
+        #                 self.hparams.image_max_size[1], 
+        #                 self.hparams.image_max_size[0]
+        #             )
+        #         )
+        #     )
 
-        if self.hparams.resize_input:
-            transformations.append(
-                transforms.Resize([320, 544])
-                # transforms.Resize([self.hparams.resize_input[0], self.hparams.resize_input[1]])
-            )
+        # if self.hparams.resize_input:
+        #     transformations.append(
+        #         transforms.Resize([320, 544])
+        #         # transforms.Resize([self.hparams.resize_input[0], self.hparams.resize_input[1]])
+        #     )
 
-        transform = transforms.Compose(transformations)
+        # transform = transforms.Compose(transformations)
 
-        img_tensor = transform(image)
+        img_tensor = transforms.PILToTensor()(image)
+        if preprocess:
+            img_tensor = self.image_preprocessor(img_tensor)
 
         return img_tensor/scale_factor
 
     
-    def read_head_label(self, img_path):
-        label_tensor = self.read_image(img_path, scale_factor=255.)
+    def read_head_label(self, img_path, preprocess=True):
+        label_tensor = self.read_image(img_path, scale_factor=255., preprocess=False)
+        if preprocess:
+            print("Original", label_tensor, label_tensor.shape)
+            label_tensor = self.label_preprocessor(label_tensor)
+            print("Preprocessed", label_tensor, label_tensor.shape)
         return label_tensor
 
 
-    def read_label(self, img_path):
+    def read_label(self, img_path, preprocess=True):
         """ Read label image and convert to greyscale
         
         Return tensor(1 x w x h): Greyscale image tensor
         """
-        img_tensor = self.read_image(img_path, scale_factor=1.)
-        
+        img_tensor = self.read_image(img_path, scale_factor=1., preprocess=False)
         label_tensor = torch.all(img_tensor.permute(1,2,0) == torch.tensor(self.hparams.white_pixel), dim=-1).unsqueeze(0)
+        label_tensor = label_tensor.float()
+        if preprocess:
+            label_tensor = self.label_preprocessor(label_tensor)
 
         return label_tensor
 
@@ -315,15 +328,14 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         img = self.data_module_obj.read_image(self.img_paths[idx], greyscale=self.greyscale)
         label = self.data_module_obj.read_label(self.label_paths[idx])
 
-        img = self.data_module_obj.image_preprocessor(img)
-        label = self.data_module_obj.label_preprocessor(label)
-        
+        assert img.shape == label.shape
+
         extras = []
 
-        if self.head_label_paths:
-            head_label_mask = self.data_module_obj.read_head_label(self.head_label_paths[idx])
-            head_label_mask = self.data_module_obj.label_preprocessor(head_label_mask)
-            extras.extend([head_label_mask])
+        # if self.head_label_paths:
+        #     head_label_mask = self.data_module_obj.read_head_label(self.head_label_paths[idx])
+        #     head_label_mask = self.data_module_obj.label_preprocessor(head_label_mask)
+        #     extras.extend([head_label_mask])
 
         if self.pred_boxes_path:
             image_id = os.path.basename(self.img_paths[idx]).split(".")[0]

@@ -49,9 +49,6 @@ class BabyLazyLoadLocalizedDataset(BabyLazyLoadDataset):
         img = self.data_module_obj.read_image(self.img_paths[idx], greyscale=self.greyscale)
         label = self.data_module_obj.read_label(self.label_paths[idx])
 
-        img = self.data_module_obj.image_preprocessor(img)
-        label = self.data_module_obj.label_preprocessor(label)
-
         bboxes = calculate_bboxes([label], loosen_amount=0.05)
         r0, c0, r1, c1 = bboxes[0]
 
