@@ -51,4 +51,4 @@ logger:
     name: "unet+deeplabv3plus+timm-efficientnet-b8+augment"
 
 paths:
-  data_dir: ${paths.root_dir}/data/baby02
+  data_dir: ${paths.root_dir}/data/baby

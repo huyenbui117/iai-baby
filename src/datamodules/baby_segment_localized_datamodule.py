@@ -75,41 +75,16 @@ class BabyLazyLoadLocalizedDataset(BabyLazyLoadDataset):
         return augmented_img, augmented_label
 
         
-
-
-
 class BabySegmentLocalizedDataModule(BabySegmentDataModule):
     """LightningDataModule for Baby dataset, with point detection.
     """
 
     def __init__(
         self,
-        data_dir: str = "data/",
-        image_preprocessor: transforms.Compose=transforms.Compose([]),
-        label_preprocessor: transforms.Compose=transforms.Compose([]),
-        augmentations: Tuple[transforms.Compose, ...]=(transforms.Compose([]),),
-        batch_size: int = 64,
-        num_workers: int = 0,
-        pin_memory: bool = False,
-        resize_input: Union[Tuple[int, int], None] = None,
-        padding: bool = True,
-        image_max_size: Tuple[int, int] = (960, 1728),
-        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
-        lazy_load: bool = False,
+        **kwargs
     ):
         super().__init__(
-            data_dir=data_dir,
-            image_preprocessor=image_preprocessor,
-            label_preprocessor=label_preprocessor,
-            augmentations=augmentations,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=pin_memory,
-            resize_input=resize_input,
-            padding=padding,
-            image_max_size=image_max_size,
-            white_pixel=white_pixel,
-            lazy_load=lazy_load,
+            **kwargs
         )
 
 

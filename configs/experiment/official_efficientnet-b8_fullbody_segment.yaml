@@ -1,0 +1,10 @@
+# @package _global_
+
+defaults: 
+  - official_efficientnet-b8_segment.yaml
+
+datamodule:
+  _target_: src.datamodules.baby_segment_datamodule.BabyFullBodySegmentDataModule
+  
+model:
+  eval_img_path: ${paths.log_dir}/tmp2

@@ -2,17 +2,13 @@ from typing import Any, Dict, Optional, Tuple, List, Union
 
 import json
 from collections import defaultdict
-import csv
-import glob
 import os
+import wandb
 from PIL import Image, ImageOps
-import tqdm
-import gc
 import random
 import torch
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
-from torchvision.datasets import MNIST
+from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision.transforms import transforms
 
 
@@ -57,9 +53,13 @@ class BabyDataModule(LightningDataModule):
         image_max_size: Tuple[int, int] = (960, 1728),
         resize_input: Union[Tuple[int, int], None] = None,
         white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
+        wandb_project: str = "baby",
+        wandb_artifact: str = None,
         lazy_load: bool = False,
     ):
         super().__init__()
+
+        self.data_dir = data_dir
 
         # this line allows to access init params wit[transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]h 'self.hpimage_max_siarams' attribute
         # also ensures init params will be stored in ckpt
@@ -73,17 +73,22 @@ class BabyDataModule(LightningDataModule):
         self.padding = padding
         self.resize_input = resize_input
 
+        self.wandb_project = wandb_project
+        self.wandb_artifact = wandb_artifact
+
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None
 
+        self.prepare_data()
+
 
     def prepare_data(self):
         """Download data if needed.
-
-        Do not use it to assign state (self.x = y).
         """
-        pass
+        api = wandb.Api()
+        artifact = api.artifact(self.wandb_artifact, type="dataset")
+        artifact.download(root=self.data_dir)
 
 
     def get_pad_sequence(self, img_width, img_height, pad_width, pad_height):
@@ -116,30 +121,6 @@ class BabyDataModule(LightningDataModule):
         if greyscale:
             image = ImageOps.grayscale(image)
 
-        # transformations = [
-        #     transforms.PILToTensor(),
-        # ]
-
-        # if self.padding:
-        #     transformations.append(
-        #         transforms.Pad(
-        #             self.get_pad_sequence(
-        #                 image.width, 
-        #                 image.height, 
-        #                 self.hparams.image_max_size[1], 
-        #                 self.hparams.image_max_size[0]
-        #             )
-        #         )
-        #     )
-
-        # if self.hparams.resize_input:
-        #     transformations.append(
-        #         transforms.Resize([320, 544])
-        #         # transforms.Resize([self.hparams.resize_input[0], self.hparams.resize_input[1]])
-        #     )
-
-        # transform = transforms.Compose(transformations)
-
         img_tensor = transforms.PILToTensor()(image)
         if preprocess:
             img_tensor = self.image_preprocessor(img_tensor)
@@ -150,9 +131,7 @@ class BabyDataModule(LightningDataModule):
     def read_head_label(self, img_path, preprocess=True):
         label_tensor = self.read_image(img_path, scale_factor=255., preprocess=False)
         if preprocess:
-            print("Original", label_tensor, label_tensor.shape)
             label_tensor = self.label_preprocessor(label_tensor)
-            print("Preprocessed", label_tensor, label_tensor.shape)
         return label_tensor
 
 

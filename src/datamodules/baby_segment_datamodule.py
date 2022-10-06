@@ -23,35 +23,18 @@ class BabySegmentDataModule(BabyDataModule):
 
     def __init__(
         self,
-        data_dir: str = "data/",
-        image_preprocessor: transforms.Compose=transforms.Compose([]),
-        label_preprocessor: transforms.Compose=transforms.Compose([]),
-        augmentations: Tuple[transforms.Compose, ...]=(transforms.Compose([]),),
-        batch_size: int = 64,
-        num_workers: int = 0,
-        pin_memory: bool = False,
-        padding: bool = True,
-        image_max_size: Tuple[int, int] = (960, 1728),
-        resize_input: Union[Tuple[int, int], None] = None,
-        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
-        lazy_load: bool = False,
-        pred_boxes_path: Union[str, None] = None
+        pred_boxes_path: Union[str, None] = None,
+        **kwargs
     ):
         super().__init__(
-            data_dir=data_dir,
-            image_preprocessor=image_preprocessor,
-            label_preprocessor=label_preprocessor,
-            augmentations=augmentations,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            pin_memory=pin_memory,
-            padding=padding,
-            image_max_size=image_max_size,
-            resize_input=resize_input,
-            white_pixel=white_pixel,
-            lazy_load=lazy_load,
+            **kwargs
         )
         self.pred_boxes_path = pred_boxes_path
+
+    def get_img_paths(self, data_dir):
+        img_paths = glob.glob(os.path.join(data_dir, "images/*"))
+        label_paths = glob.glob(os.path.join(data_dir, "label/*"))
+        return img_paths, label_paths
 
 
     def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=False):
@@ -62,8 +45,7 @@ class BabySegmentDataModule(BabyDataModule):
         Return TensorDataset[tuple(x, y)]
         """
 
-        img_paths = glob.glob(os.path.join(data_dir, "images/*"))
-        label_paths = glob.glob(os.path.join(data_dir, "label/*"))
+        img_paths, label_paths = self.get_img_paths(data_dir)
 
         if lazy_load:
             return BabyLazyLoadDataset(
@@ -76,6 +58,36 @@ class BabySegmentDataModule(BabyDataModule):
             )
         else:
             raise("Not implemented")
+
+
+class BabyFullBodySegmentDataModule(BabySegmentDataModule):
+    def __init__(
+        self,
+        **kwargs
+    ):
+        """Segment data module for full body images
+
+        Args:
+            fullbody_img_names (str, optional): Path to file that contain full body image names. Defaults to None.
+        """
+        super().__init__(
+            **kwargs
+        )
+
+    def get_img_paths(self, data_dir):
+
+        img_paths = glob.glob(os.path.join(data_dir, "images/*"))
+        label_paths = glob.glob(os.path.join(data_dir, "label/*"))
+
+        with open(os.path.join(data_dir, "fullbody_imgs.txt")) as f:
+            fullbody_names = f.read().split("\n")
+            if fullbody_names[-1] == "":
+                fullbody_names.pop()
+        img_paths = [p for p in img_paths if os.path.basename(p) in fullbody_names]
+        label_paths = [p for p in label_paths if os.path.basename(p) in fullbody_names]
+        assert len(img_paths) == len(label_paths)
+
+        return img_paths, label_paths
 
 
 if __name__ == "__main__":

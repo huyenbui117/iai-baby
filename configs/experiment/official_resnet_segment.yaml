@@ -48,5 +48,5 @@ logger:
     group: "test/segment/baby"
     name: "unet+resnet50+augment"
 
-paths:
-  data_dir: ${paths.root_dir}/data/baby02
+# paths:
+#   data_dir: ${paths.root_dir}/data/baby02

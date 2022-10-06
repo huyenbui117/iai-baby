@@ -52,5 +52,5 @@ logger:
     group: "test/segment/baby"
     name: "unet+timm-efficientnet-b8+augment+albumentations"
 
-paths:
-  data_dir: ${paths.root_dir}/data/baby02
+# paths:
+#   data_dir: ${paths.root_dir}/data/baby02
