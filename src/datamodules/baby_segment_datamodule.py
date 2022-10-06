@@ -1,19 +1,9 @@
-from typing import Any, Dict, Optional, Tuple, List, Union
+from typing import Union
 
 import glob
-import random
 import os
-from PIL import Image, ImageOps
-import tqdm
-import gc
 
-import torch
-from pytorch_lightning import LightningDataModule
-from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
-from torchvision.datasets import MNIST
-from torchvision.transforms import transforms
-
-from .baby_datamodule import BabyDataModule, BabyTupleDataset, BabyLazyLoadDataset
+from .baby_datamodule import BabyDataModule, BabyLazyLoadDataset
 
 
 
@@ -66,9 +56,6 @@ class BabyFullBodySegmentDataModule(BabySegmentDataModule):
         **kwargs
     ):
         """Segment data module for full body images
-
-        Args:
-            fullbody_img_names (str, optional): Path to file that contain full body image names. Defaults to None.
         """
         super().__init__(
             **kwargs
@@ -89,6 +76,32 @@ class BabyFullBodySegmentDataModule(BabySegmentDataModule):
 
         return img_paths, label_paths
 
+
+class BabyFullHeadSegmentDataModule(BabySegmentDataModule):
+    def __init__(
+        self,
+        **kwargs
+    ):
+        """Segment data module for full head images
+        """
+        super().__init__(
+            **kwargs
+        )
+
+    def get_img_paths(self, data_dir):
+
+        img_paths = glob.glob(os.path.join(data_dir, "images/*"))
+        label_paths = glob.glob(os.path.join(data_dir, "label/*"))
+
+        with open(os.path.join(data_dir, "head_imgs.txt")) as f:
+            head_names = f.read().split("\n")
+            if head_names[-1] == "":
+                head_names.pop()
+        img_paths = [p for p in img_paths if os.path.basename(p) in head_names]
+        label_paths = [p for p in label_paths if os.path.basename(p) in head_names]
+        assert len(img_paths) == len(label_paths)
+
+        return img_paths, label_paths
 
 if __name__ == "__main__":
     import hydra
