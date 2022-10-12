@@ -127,7 +127,7 @@ class BabyDataModule(LightningDataModule):
 
         return img_tensor/scale_factor
 
-    
+
     def read_head_label(self, img_path, preprocess=True):
         label_tensor = self.read_image(img_path, scale_factor=255., preprocess=False)
         if preprocess:
@@ -140,9 +140,11 @@ class BabyDataModule(LightningDataModule):
         
         Return tensor(1 x w x h): Greyscale image tensor
         """
-        img_tensor = self.read_image(img_path, scale_factor=1., preprocess=False)
-        label_tensor = torch.all(img_tensor.permute(1,2,0) == torch.tensor(self.hparams.white_pixel), dim=-1).unsqueeze(0)
-        label_tensor = label_tensor.float()
+        # img_tensor = self.read_image(img_path, scale_factor=1., preprocess=False)
+        # label_tensor = torch.all(img_tensor.permute(1,2,0) == torch.tensor(self.hparams.white_pixel), dim=-1).unsqueeze(0)
+        # label_tensor = label_tensor.float()
+        label_tensor = self.read_image(img_path, scale_factor=255., preprocess=False)
+        
         if preprocess:
             label_tensor = self.label_preprocessor(label_tensor)
 

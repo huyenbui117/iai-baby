@@ -48,7 +48,6 @@ class BabyLazyLoadLocalizedDataset(BabyLazyLoadDataset):
     def __getitem__(self, idx):
         img = self.data_module_obj.read_image(self.img_paths[idx], greyscale=self.greyscale)
         label = self.data_module_obj.read_label(self.label_paths[idx])
-
         bboxes = calculate_bboxes([label], loosen_amount=0.05)
         r0, c0, r1, c1 = bboxes[0]
 
@@ -57,13 +56,15 @@ class BabyLazyLoadLocalizedDataset(BabyLazyLoadDataset):
         c0 = int(c0 * img.shape[-1])
         c1 = int(c1 * img.shape[-1])
 
-        transform = transforms.Resize((320, 544))
+        img = img[:, r0:r1+1, c0:c1+1]
+        label = label[:, r0:r1+1, c0:c1+1]
 
-        img, label = transform(img[:, r0:r1+1, c0:c1+1]), transform(label[:, r0:r1+1, c0:c1+1])
+        transform = transforms.Resize((320, 544))
+        img, label = transform(img), transform(label)
 
         if not self.augment:
             return (img, label)
-        
+
         # augmented_tensors = self.data_module_obj.augment_tensors(torch.stack([img, label]))
         augmented_tensors = self.data_module_obj.augment_tensors(img, label)
 

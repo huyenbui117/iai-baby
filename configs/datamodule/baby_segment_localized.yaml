@@ -14,16 +14,40 @@ wandb_artifact: "baby-team/baby/baby:v2"
 # The preprocess will be applied to the original image first and foremost
 image_preprocessor:
   _target_: torchvision.transforms.transforms.Compose
-  transforms: [
-    # {
-    #   _target_: torchvision.transforms.transforms.Normalize,
-    #   mean: [0.1307],
-    #   std: [0.3081]
-    # },
-  ]
+  transforms:
+  - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+    transform:
+      _target_: albumentations.PadIfNeeded
+      min_height: 960
+      min_width: 1728
+  - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+    transform:
+      _target_: albumentations.CenterCrop
+      height: 800
+      width: 1024
+  - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+    transform:
+      _target_: albumentations.Resize
+      height: 320
+      width: 544
 label_preprocessor: 
   _target_: torchvision.transforms.transforms.Compose
-  transforms: []
+  transforms:
+  - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+    transform:
+      _target_: albumentations.PadIfNeeded
+      min_height: 960
+      min_width: 1728
+  - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+    transform:
+      _target_: albumentations.CenterCrop
+      height: 800
+      width: 1024
+  - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+    transform:
+      _target_: albumentations.Resize
+      height: 320
+      width: 544
 
 # List of augmentations
 # The transformed dataset will have the additional images

@@ -1,0 +1,58 @@
+# @package _global_
+
+# Segment from cropped region of the NT region
+# Use for training
+
+defaults: 
+  - official_efficientnet-b8_segment.yaml
+  - override /datamodule: baby_segment_localized.yaml
+
+datamodule:
+  wandb_artifact: baby-team/baby/baby_processed:latest
+
+  # List of preprocess
+  # The preprocess will be applied to the original image first and foremost
+  image_preprocessor:
+    _target_: torchvision.transforms.transforms.Compose
+    transforms:
+    - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+      transform:
+        _target_: albumentations.CenterCrop
+        height: 800
+        width: 1024
+  label_preprocessor: 
+    _target_: torchvision.transforms.transforms.Compose
+    transforms:
+    - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+      transform:
+        _target_: albumentations.CenterCrop
+        height: 800
+        width: 1024
+        
+  augmentations:
+  -
+    - 
+      - _target_: src.datamodules.components.augmentations.MultiRandomErasing
+        p: 0.5
+        repeat: [5,15]
+      - true
+      - false
+    -
+      - _target_: torchvision.transforms.RandomRotation
+        degrees: 5
+      - true
+      - true
+    - 
+      - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+        transform: 
+          _target_: albumentations.RandomBrightnessContrast
+          p: 0.5
+      - true
+      - false
+
+logger:
+  wandb:
+    group: official/flip+segment_localized/baby
+  
+paths:
+  data_dir: ${paths.root_dir}/data/baby_processed

@@ -5,3 +5,7 @@ defaults:
 
 datamodule:
   _target_: src.datamodules.baby_segment_datamodule.BabyFullBodySegmentDataModule
+
+logger:
+  wandb:
+    name: "unet+onlybody+timm-efficientnet-b8+augment+albumentations"

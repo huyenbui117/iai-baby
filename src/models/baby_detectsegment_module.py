@@ -43,7 +43,7 @@ class BabyDetectSegmentLitModule(BabySegmentLitModule):
     
 
     def localize_batch(self, x, y, batch_bboxes):
-        release_pixel = 5
+        release_pixel = 0
         localized_x, localized_y = [], []
         downsize = transforms.Resize((320, 544))
         for idx, sample in enumerate(x):
@@ -65,6 +65,16 @@ class BabyDetectSegmentLitModule(BabySegmentLitModule):
         localized_y = torch.stack(localized_y)
         
         return localized_x, localized_y
+
+    def rebuild_from_original_and_localized(
+        x,
+        y,
+        batch_bboxes,
+        localized_preds
+    ):
+        for idx in range(len(batch_bboxes)):
+            bboxes = batch_bboxes[idx]
+            bx, by, bw, bh = list(map(int, bboxes))
 
 
     def step(self, batch: Any):
@@ -117,8 +127,36 @@ class BabyDetectSegmentLitModule(BabySegmentLitModule):
         # Mask the prediction with red, groundtruth with green 
         img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
         img_mask[1] = (targets == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
+        
+        # Calculate and log original predicted images
+        original_img_tensor = x.swapaxes(0,1)
+        original_img_mask = original_img_tensor.repeat(3,1,1,1)
+
+        # Mask the global prediction with red, groundtruth with green 
+        # img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
+        original_img_mask[1] = (y.squeeze(1) == 1) * 1 + (original_img_tensor[0] != 1) * original_img_mask[1]
+
+        img_mask = img_mask.swapaxes(1,0).cpu()
+        original_img_mask = original_img_mask.swapaxes(1,0).cpu()
+
+        for idx in range(len(batch_bboxes)):
+            bbox = batch_bboxes[idx]
+            bx, by, bw, bh = list(map(int, bbox))
+            bh = min(bh, original_img_mask.shape[2]-by)
+            bw = min(bw, original_img_mask.shape[3]-bx)
+            reconstructed_img_mask = transforms.Resize((bh, bw))(img_mask[idx])
             
-        log_imgs = img_mask.swapaxes(1,0).cpu()
+            # Create bounding box
+            reconstructed_img_mask[0,0,:] = 1
+            reconstructed_img_mask[0,-1,:] = 1
+            reconstructed_img_mask[0,:,0] = 1
+            reconstructed_img_mask[0,:,-1] = 1
+            try:
+                original_img_mask[idx,:,by:by+bh,bx:bx+bw] = reconstructed_img_mask
+            except:
+                import IPython ; IPython.embed()
+        log_imgs = original_img_mask
+
         log_img_paths = []
         for idx, img in enumerate(log_imgs):
             img_path = os.path.join(self.hparams.eval_img_path, f"{phase}-{batch_idx}-{idx}.png")
@@ -128,6 +166,8 @@ class BabyDetectSegmentLitModule(BabySegmentLitModule):
             )
             log_img_paths.append(img_path)
 
+        # import IPython ; IPython.embed()
+        
         return log_img_paths
 
 
