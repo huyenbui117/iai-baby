@@ -1,4 +1,0 @@
-defaults:
-  - baby_detectsegment_resnet50.yaml
-net:
-  encoder_name: timm-efficientnet-b8

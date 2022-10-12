@@ -4,7 +4,6 @@ defaults:
   - official_efficientnet-b8_segment.yaml
 
 datamodule:
-  wandb_artifact: baby-team/baby/baby_processed:latest
   augmentations:
   -
     - 

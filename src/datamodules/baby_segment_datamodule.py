@@ -27,7 +27,7 @@ class BabySegmentDataModule(BabyDataModule):
         return img_paths, label_paths
 
 
-    def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=False):
+    def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=True):
         """Load data from directory
 
         This method load images from directory and return data as sequence.
@@ -37,17 +37,14 @@ class BabySegmentDataModule(BabyDataModule):
 
         img_paths, label_paths = self.get_img_paths(data_dir)
 
-        if lazy_load:
-            return BabyLazyLoadDataset(
-                img_paths, 
-                label_paths, 
-                augment=augment, 
-                data_module_obj=self, 
-                greyscale=greyscale,
-                pred_boxes_path=self.pred_boxes_path
-            )
-        else:
-            raise("Not implemented")
+        return BabyLazyLoadDataset(
+            img_paths, 
+            label_paths, 
+            augment=augment, 
+            data_module_obj=self, 
+            greyscale=greyscale,
+            pred_boxes_path=self.pred_boxes_path
+        )
 
 
 class BabyFullBodySegmentDataModule(BabySegmentDataModule):

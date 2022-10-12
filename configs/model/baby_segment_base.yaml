@@ -1,4 +1,4 @@
-_target_: src.models.baby_detectsegment_module.BabyDetectSegmentLitModule
+_target_: src.models.baby_segment_module.BabySegmentLitModule
 
 optimizer: 
   _target_: torch.optim.Adam
@@ -12,26 +12,39 @@ lr_scheduler:
   min_lr: 0.0001
 lr_scheduler_monitor: "val/loss"
 
-detector: null
 net:
   _target_: segmentation_models_pytorch.Unet
-  encoder_name: resnet50
   encoder_weights: imagenet
   in_channels: 1
   classes: 2
   decoder_use_batchnorm: false
 
 loss_func:
+  # _target_: segmentation_models_pytorch.losses.SoftBCEWithLogitsLoss
+  
+  # _target_: segmentation_models_pytorch.losses.MCCLoss
+
+  # _target_: segmentation_models_pytorch.losses.JaccardLoss
+  # mode: binary
+  # log_loss: false
+  # from_logits: false
+  # smooth: 0.01
+
+  # _target_: src.models.losses.DiceCECombined.DiceCECombined
+  # ce_loss_weight:
+  #   _target_: torch.Tensor
+  #   data: [0.005, 0.995]
+  
   _target_: torch.nn.CrossEntropyLoss
   weight:
     _target_: torch.Tensor
     data: [0.01, 0.99]
   label_smoothing: 0.01
     
-
+postprocessor: null
 
 eval_img_path: ${paths.log_dir}/tmp
 
-log_train_img: false
-log_val_img: true
-log_test_img: true
+log_train_img: 0.05
+log_val_img: 0.5
+log_test_img: 1.

@@ -13,7 +13,7 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
 
-from .baby_datamodule import BabyDataModule, BabyLazyLoadDataset
+from .baby_datamodule import BabyDataModule, BabyLazyLoadDataset, BabyTupleDataset
 
 class BabyDectDataModule(BabyDataModule):
     """LightningDataModule for Baby dataset, with point detection.
@@ -28,9 +28,7 @@ class BabyDectDataModule(BabyDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
-        image_max_size: Tuple[int, int] = (960, 1728),
-        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
-        lazy_load: bool = False
+        lazy_load: bool = True
     ):
         super().__init__(
             data_dir=data_dir,
@@ -40,8 +38,6 @@ class BabyDectDataModule(BabyDataModule):
             batch_size=batch_size,
             num_workers=num_workers,
             pin_memory=pin_memory,
-            image_max_size=image_max_size,
-            white_pixel=white_pixel,
             lazy_load=lazy_load
         )
 
@@ -68,7 +64,7 @@ class BabyDectDataModule(BabyDataModule):
         return torch.stack((rows_tensor, cols_tensor), dim=-1)
 
 
-    def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=False):
+    def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=True):
         """Load data from directory
 
         This method load images from directory and return data as sequence.

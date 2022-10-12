@@ -89,7 +89,7 @@ class BabySegmentLocalizedDataModule(BabySegmentDataModule):
         )
 
 
-    def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=False):
+    def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=True):
         """Load data from directory
 
         This method load images from directory and return data as sequence.

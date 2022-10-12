@@ -1,0 +1,24 @@
+# @package _global_
+
+# Segmentation with localized input images (cut from label)
+# to execute this experiment run:
+# python eval.py experiment=eval_fromyolo_effnet-b8.yaml
+
+defaults:
+  - official_effnet-b8_segment.yaml
+  - override /datamodule: baby_eval_fromyolo.yaml
+  - override /model: baby_segment_fromyolo_effnet-b8.yaml
+
+datamodule:
+  batch_size: 1 # only support batch size 1 for getting label from yolov7 prediction file
+  padding: false
+
+model:
+  postprocessor: 
+    _target_: src.models.postprocess.largest_connected_component.MaxAreaProcessor
+
+logger:
+  wandb:
+    group: "eval/segment_from_yolo/baby"
+
+ckpt_path: ${paths.root_dir}/ckpt/2022-10-10_22-24-03_timm-effnet-b8-localized/checkpoints/last.ckpt

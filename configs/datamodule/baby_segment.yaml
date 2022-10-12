@@ -3,12 +3,9 @@ data_dir: ${paths.data_dir}
 batch_size: 4
 num_workers: 8
 pin_memory: false
-image_max_size: [960, 1728]
-resize_input: true
-white_pixel: [253, 231, 36, 255]
 lazy_load: true
 wandb_project: "baby"
-wandb_artifact: "baby-team/baby/baby:v2"
+wandb_artifact: "baby-team/baby/baby:latest"
 
 # List of preprocess
 # The preprocess will be applied to the original image first and foremost
@@ -56,30 +53,12 @@ label_preprocessor:
 # then the final images will have (..., originalImageX, transformA(originalImageX), transformB(originalImageY), ...)
 augmentations: 
 - 
-  # -
-  #   - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
-  #     transform:
-  #       _target_: albumentations.Normalize
-  #       mean: 0.485
-  #       std: 0.229
-  #   - true
-  #   - false
   - 
     - _target_: src.datamodules.components.augmentations.MultiRandomErasing
       p: 0.5
       repeat: [5,15]
     - true
     - false
-  -
-    - _target_: torchvision.transforms.RandomHorizontalFlip
-      p: 0.5
-    - true
-    - true
-  -
-    - _target_: torchvision.transforms.RandomVerticalFlip
-      p: 0.5
-    - true
-    - true
   -
     - _target_: torchvision.transforms.RandomRotation
       degrees: 5

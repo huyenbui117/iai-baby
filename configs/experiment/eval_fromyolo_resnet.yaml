@@ -1,0 +1,18 @@
+# @package _global_
+
+# Segmentation with localized input images (cut from label)
+# to execute this experiment run:
+# python eval.py experiment=eval_fromyolo_resnet.yaml
+
+defaults:
+  - official_resnet_segment_localized.yaml
+  - override /datamodule: baby_eval_fromyolo.yaml
+  - override /model: baby_segment_fromyolo_resnet.yaml
+
+datamodule:
+  batch_size: 1 # only support batch size 1 for getting label from yolov7 prediction file
+  padding: false
+
+logger:
+  wandb:
+    group: "eval/segment_from_yolo/baby"

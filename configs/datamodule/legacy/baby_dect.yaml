@@ -3,8 +3,6 @@ data_dir: ${paths.data_dir}
 batch_size: 4
 num_workers: 8
 pin_memory: False
-image_max_size: [960, 1728]
-white_pixel: [253, 231, 36, 255]
 lazy_load: true
 wandb_project: "baby"
 wandb_artifact: "baby-team/baby/baby:v2"

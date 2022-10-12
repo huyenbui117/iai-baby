@@ -51,20 +51,17 @@ class BabySegmentWithHeadMaskDataModule(BabySegmentDataModule):
         )
 
 
-    def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=False):
+    def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=True):
         img_paths = glob.glob(os.path.join(data_dir, "images/*"))
         label_paths = glob.glob(os.path.join(data_dir, "label/*"))
         head_label_paths = glob.glob(os.path.join(data_dir, "head_label_binary/*"))
 
-        if lazy_load:
-            return BabyLazyLoadSegmentWithHeadMaskDataset(
-                img_paths=img_paths, 
-                label_paths=label_paths, 
-                head_label_paths=head_label_paths,
-                augment=augment, 
-                data_module_obj=self, 
-                greyscale=greyscale,
-                pred_boxes_path=self.pred_boxes_path
-            )
-        else:
-            raise("Not implemented")
+        return BabyLazyLoadSegmentWithHeadMaskDataset(
+            img_paths=img_paths, 
+            label_paths=label_paths, 
+            head_label_paths=head_label_paths,
+            augment=augment, 
+            data_module_obj=self, 
+            greyscale=greyscale,
+            pred_boxes_path=self.pred_boxes_path
+        )

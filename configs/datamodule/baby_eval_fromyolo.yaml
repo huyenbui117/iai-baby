@@ -1,0 +1,11 @@
+defaults:
+  - baby_segment.yaml
+
+pred_boxes_path: ${paths.data_dir}/yolo_bbox_preds.json
+
+image_preprocessor:
+  _target_: torchvision.transforms.transforms.Compose
+  transforms: []
+label_preprocessor: 
+  _target_: torchvision.transforms.transforms.Compose
+  transforms: []
