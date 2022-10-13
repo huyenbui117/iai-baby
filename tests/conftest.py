@@ -8,7 +8,10 @@ from omegaconf import DictConfig, open_dict
 @pytest.fixture(scope="package")
 def cfg_train_global() -> DictConfig:
     with initialize(version_base="1.2", config_path="../configs"):
-        cfg = compose(config_name="train.yaml", return_hydra_config=True, overrides=[])
+        cfg = compose(
+            config_name="train.yaml", 
+            return_hydra_config=True, 
+            overrides=["experiment=official_resnet_segment", "logger=csv"])
 
         # set defaults for all tests
         with open_dict(cfg):
@@ -23,7 +26,7 @@ def cfg_train_global() -> DictConfig:
             cfg.datamodule.pin_memory = False
             cfg.extras.print_config = False
             cfg.extras.enforce_tags = False
-            cfg.logger = None
+            # cfg.logger = None
 
     return cfg
 

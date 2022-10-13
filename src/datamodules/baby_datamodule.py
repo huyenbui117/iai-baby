@@ -45,13 +45,13 @@ class BabyDataModule(LightningDataModule):
         data_dir: str = "data/",
         image_preprocessor: transforms.Compose=transforms.Compose([]),
         label_preprocessor: transforms.Compose=transforms.Compose([]),
-        augmentations: Tuple[transforms.Compose, ...]=(transforms.Compose([]),),
+        augmentations: List[List[transforms.Compose]]=[[]],
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
         padding: bool = True,
         wandb_project: str = "baby",
-        wandb_artifact: str = None,
+        wandb_artifact: str = "baby-team/baby/baby:latest",
         lazy_load: bool = True,
     ):
         super().__init__()
@@ -137,7 +137,6 @@ class BabyDataModule(LightningDataModule):
         Return tensor(1 x w x h): Greyscale image tensor
         """
         label_tensor = self.read_image(img_path, scale_factor=255., preprocess=False)
-        
         if preprocess:
             label_tensor = self.label_preprocessor(label_tensor)
 
@@ -301,6 +300,7 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         label = self.data_module_obj.read_label(self.label_paths[idx])
 
         assert img.shape == label.shape
+        assert len(label.unique()) == 2
 
         extras = []
 

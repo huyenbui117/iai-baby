@@ -27,6 +27,8 @@ image_preprocessor:
       _target_: albumentations.Resize
       height: 320
       width: 544
+      interpolation: 
+        _target_: src.utils.custom_cv2.INTER_NEAREST
 
 label_preprocessor: 
   _target_: torchvision.transforms.transforms.Compose
@@ -46,6 +48,8 @@ label_preprocessor:
       _target_: albumentations.Resize
       height: 320
       width: 544
+      interpolation: 
+        _target_: src.utils.custom_cv2.INTER_NEAREST
 
 # List of augmentations
 # The transformed dataset will have the additional images

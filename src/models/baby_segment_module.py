@@ -77,7 +77,8 @@ class BabySegmentLitModule(BabyLitModule):
 
     def step(self, batch: Any):
         x, y, *args = batch
-        # import IPython ; IPython.embed()
+        assert x.shape == y.shape
+        assert len(y.unique()) == 2
         logits = self.forward(x)
 
         # # TODO: Recheck this. Why adding sigmoid improve loss?
