@@ -2,33 +2,13 @@
 
 # Segmentation with localized input images (cut from label)
 # to execute this experiment run:
-# python train.py experiment=example_segment
+# python train.py experiment=official_resnet_segment_localized
 
 defaults:
+  - official_resnet_segment.yaml
   - override /datamodule: baby_segment_localized.yaml
-  - override /model: baby_segment_resnet50.yaml
-  - override /callbacks: default.yaml
-  - override /trainer: gpu.yaml
-  - override /paths: default.yaml
-  - override /logger: wandb.yaml
-
-# all parameters below will be merged with parameters from default configurations set above
-# this allows you to overwrite only specified parameters
-
-tags: ["baby", "resnet_50"]
-
-seed: 12345
-
-callbacks:
-  early_stopping:
-    monitor: "val/iou"
-    patience: 50
-  model_checkpoint:
-    monitor: "val/iou"
 
 model:
-  optimizer:
-    lr: 0.001
   postprocessor: 
     _target_: src.models.postprocess.largest_connected_component.MaxAreaProcessor
 
@@ -39,25 +19,13 @@ model:
       data: [0.15, 0.85]
     label_smoothing: 0.01
 
-  log_train_img: 0.1
-  log_val_img: 1.
-  log_test_img: 1.
-
-
 datamodule:
   batch_size: 16
-  # augmentations: []
 
 trainer:
-  max_epochs: 150
   accumulate_grad_batches: 8
 
-
+tags: ["baby", "resnet50", "localized"]
 logger:
   wandb:
-    tags: ${tags}
-    group: "test/localized_segment/baby"
-    name: "unet+resnet50+augment"
-
-paths:
-  data_dir: ${paths.root_dir}/data/baby
+    group: "official/localized_segment/baby"

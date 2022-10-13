@@ -3,7 +3,7 @@ import torch
 import numpy as np
 
 class MaxAreaProcessor(object):
-    def __init__(self):
+    def __init__(self, **kwargs):
         pass
     
     def __call__(self, input_masks: torch.Tensor) -> torch.Tensor:

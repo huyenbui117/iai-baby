@@ -1,0 +1,4 @@
+defaults:
+  - baby_segment_resnet50.yaml
+
+_target_: src.models.baby_detectsegment_module.BabyDetectSegmentLitModule

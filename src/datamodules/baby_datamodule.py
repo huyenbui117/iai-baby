@@ -50,18 +50,15 @@ class BabyDataModule(LightningDataModule):
         num_workers: int = 0,
         pin_memory: bool = False,
         padding: bool = True,
-        image_max_size: Tuple[int, int] = (960, 1728),
-        resize_input: Union[Tuple[int, int], None] = None,
-        white_pixel: Tuple[int, int, int, int] = (253, 231, 36, 255),
         wandb_project: str = "baby",
         wandb_artifact: str = None,
-        lazy_load: bool = False,
+        lazy_load: bool = True,
     ):
         super().__init__()
 
         self.data_dir = data_dir
 
-        # this line allows to access init params wit[transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]h 'self.hpimage_max_siarams' attribute
+        # this line allows to access init params wit[transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]h 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
@@ -71,7 +68,6 @@ class BabyDataModule(LightningDataModule):
         self.augmentations = augmentations
         self.lazy_load = lazy_load
         self.padding = padding
-        self.resize_input = resize_input
 
         self.wandb_project = wandb_project
         self.wandb_artifact = wandb_artifact
@@ -127,7 +123,7 @@ class BabyDataModule(LightningDataModule):
 
         return img_tensor/scale_factor
 
-    
+
     def read_head_label(self, img_path, preprocess=True):
         label_tensor = self.read_image(img_path, scale_factor=255., preprocess=False)
         if preprocess:
@@ -140,9 +136,8 @@ class BabyDataModule(LightningDataModule):
         
         Return tensor(1 x w x h): Greyscale image tensor
         """
-        img_tensor = self.read_image(img_path, scale_factor=1., preprocess=False)
-        label_tensor = torch.all(img_tensor.permute(1,2,0) == torch.tensor(self.hparams.white_pixel), dim=-1).unsqueeze(0)
-        label_tensor = label_tensor.float()
+        label_tensor = self.read_image(img_path, scale_factor=255., preprocess=False)
+        
         if preprocess:
             label_tensor = self.label_preprocessor(label_tensor)
 
@@ -190,11 +185,9 @@ class BabyDataModule(LightningDataModule):
         self.data_train = self.load_data_from_dir(
             os.path.join(self.hparams.data_dir, "train"), 
             augment = True, 
-            lazy_load=self.lazy_load
         )
         self.data_val = self.load_data_from_dir(
             os.path.join(self.hparams.data_dir, "val"), 
-            lazy_load=self.lazy_load
         )
         self.data_test = self.load_data_from_dir(
             os.path.join(self.hparams.data_dir, "test"), 

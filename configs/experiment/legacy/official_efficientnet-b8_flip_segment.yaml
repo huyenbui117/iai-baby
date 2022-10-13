@@ -1,0 +1,33 @@
+# @package _global_
+
+defaults: 
+  - official_efficientnet-b8_segment.yaml
+
+datamodule:
+  augmentations:
+  -
+    - 
+      - _target_: src.datamodules.components.augmentations.MultiRandomErasing
+        p: 0.5
+        repeat: [5,15]
+      - true
+      - false
+    -
+      - _target_: torchvision.transforms.RandomRotation
+        degrees: 5
+      - true
+      - true
+    - 
+      - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+        transform: 
+          _target_: albumentations.RandomBrightnessContrast
+          p: 0.5
+      - true
+      - false
+
+logger:
+  wandb:
+    group: official/flip+segment/baby
+  
+paths:
+  data_dir: ${paths.root_dir}/data/baby_processed

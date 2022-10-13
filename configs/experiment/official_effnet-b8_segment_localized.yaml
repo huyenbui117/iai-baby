@@ -1,0 +1,33 @@
+# @package _global_
+
+# Segment from cropped region of the NT region
+# Use for training
+
+defaults: 
+  - official_effnet-b8_segment.yaml
+  - override /datamodule: baby_segment_localized.yaml
+
+datamodule:
+  # List of preprocess
+  # The preprocess will be applied to the original image first and foremost
+  image_preprocessor:
+    _target_: torchvision.transforms.transforms.Compose
+    transforms:
+    - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+      transform:
+        _target_: albumentations.CenterCrop
+        height: 800
+        width: 1024
+  label_preprocessor: 
+    _target_: torchvision.transforms.transforms.Compose
+    transforms:
+    - _target_: src.models.preprocess.CustomAlbumentation.AlbumentationWrapper
+      transform:
+        _target_: albumentations.CenterCrop
+        height: 800
+        width: 1024
+
+tags: ["baby", "effnetb8", "localized"]
+logger:
+  wandb:
+    group: official/localized_segment/baby

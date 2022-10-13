@@ -1,0 +1,11 @@
+# @package _global_
+
+defaults: 
+  - official_effnet-b8_segment.yaml
+
+datamodule:
+  _target_: src.datamodules.baby_segment_datamodule.BabyFullHeadSegmentDataModule
+
+logger:
+  wandb:
+    name: "unet+onlyhead+timm-efficientnet-b8+augment+albumentations"

@@ -1,7 +1,0 @@
-# @package _global_
-
-defaults: 
-  - official_efficientnet-b8_segment.yaml
-
-datamodule:
-  _target_: src.datamodules.baby_segment_datamodule.BabyFullBodySegmentDataModule

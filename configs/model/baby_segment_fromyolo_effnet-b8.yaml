@@ -1,0 +1,4 @@
+defaults:
+  - baby_segment_timm-efficientnet-b8.yaml
+
+_target_: src.models.baby_detectsegment_module.BabyDetectSegmentLitModule

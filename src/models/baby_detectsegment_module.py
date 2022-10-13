@@ -15,7 +15,6 @@ class BabyDetectSegmentLitModule(BabySegmentLitModule):
 
     def __init__(
         self,
-        detector: Callable,
         net: segmentation_models_pytorch.Unet,
         optimizer: torch.optim.Optimizer,
         postprocessor: Union[Callable, None] = None,
@@ -39,11 +38,10 @@ class BabyDetectSegmentLitModule(BabySegmentLitModule):
             log_val_img=log_val_img,
             log_test_img=log_test_img
         )
-        self.detector = detector
     
 
     def localize_batch(self, x, y, batch_bboxes):
-        release_pixel = 5
+        release_pixel = 0
         localized_x, localized_y = [], []
         downsize = transforms.Resize((320, 544))
         for idx, sample in enumerate(x):
@@ -66,6 +64,16 @@ class BabyDetectSegmentLitModule(BabySegmentLitModule):
         
         return localized_x, localized_y
 
+    def rebuild_from_original_and_localized(
+        x,
+        y,
+        batch_bboxes,
+        localized_preds
+    ):
+        for idx in range(len(batch_bboxes)):
+            bboxes = batch_bboxes[idx]
+            bx, by, bw, bh = list(map(int, bboxes))
+
 
     def step(self, batch: Any):
         x, y, *args = batch
@@ -80,55 +88,89 @@ class BabyDetectSegmentLitModule(BabySegmentLitModule):
 
         # logits = self.forward(x)
         logits = self.forward(localized_x)
-        preds = torch.argmax(logits, dim=1)
+        localized_preds = torch.argmax(logits, dim=1)
         
         localized_y = localized_y.squeeze(1).long()
         loss = self.criterion(logits, localized_y)
 
-        return loss, preds, localized_y
+        ### 
+        ###
+        ###
 
-        # upsize = transforms.Resize(original_size)
-        # logits = upsize(logits)
+        # Calculate and log original predicted images
+        original_img_mask = x
+        original_img_mask = (original_img_mask*0).long()
 
-        # import IPython ; IPython.embed()
-
-        # y = y.squeeze(1).long()
-        # loss = self.criterion(logits, y)
-
-        # if self.postprocessor is not None:
-        #     preds = self.postprocessor(preds)
-
-        # return loss, preds, y
-
-
-    def log_batch_img(self, batch, batch_idx, preds, targets, phase="train"):
-        x, y, *args = batch
-
-        if len(args) > 0:
-            batch_bboxes = args[0]
-
-            localized_x, localized_y = self.localize_batch(
-                x, y, batch_bboxes
-            )
-        # Calculate and log predicted images
-        img_tensor = localized_x.swapaxes(0,1) # img_tensor shape: (channel(1) x n x h x w)
-        img_mask = img_tensor.repeat(3,1,1,1)
-
-        # Mask the prediction with red, groundtruth with green 
-        img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
-        img_mask[1] = (targets == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
+        for idx in range(len(batch_bboxes)):
+            bbox = batch_bboxes[idx]
+            bx, by, bw, bh = list(map(int, bbox))
+            bh = min(bh, original_img_mask.shape[-2]-by)
+            bw = min(bw, original_img_mask.shape[-1]-bx)
+            reconstructed_img_mask = transforms.Resize((bh, bw))(localized_preds.unsqueeze(1)[idx])
             
-        log_imgs = img_mask.swapaxes(1,0).cpu()
-        log_img_paths = []
-        for idx, img in enumerate(log_imgs):
-            img_path = os.path.join(self.hparams.eval_img_path, f"{phase}-{batch_idx}-{idx}.png")
-            save_image(
-                img,
-                img_path
-            )
-            log_img_paths.append(img_path)
+            original_img_mask[idx,:,by:by+bh,bx:bx+bw] = reconstructed_img_mask
 
-        return log_img_paths
+        y = y.squeeze(0).long()
+        original_img_mask = original_img_mask.squeeze(0).long()
+        if self.postprocessor is not None:
+            original_img_mask = self.postprocessor(original_img_mask)
+        return loss, original_img_mask, y
+
+
+    # def log_batch_img(self, batch, batch_idx, preds, targets, phase="train"):
+    #     x, y, *args = batch
+
+    #     if len(args) > 0:
+    #         batch_bboxes = args[0]
+
+    #         localized_x, localized_y = self.localize_batch(
+    #             x, y, batch_bboxes
+    #         )
+    #     # Calculate and log predicted images
+    #     img_tensor = localized_x.swapaxes(0,1) # img_tensor shape: (channel(1) x n x h x w)
+    #     img_mask = img_tensor.repeat(3,1,1,1)
+
+    #     # Mask the prediction with red, groundtruth with green 
+    #     img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
+    #     img_mask[1] = (targets == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
+        
+    #     # Calculate and log original predicted images
+    #     original_img_tensor = x.swapaxes(0,1)
+    #     original_img_mask = original_img_tensor.repeat(3,1,1,1)
+
+    #     # Mask the global prediction with red, groundtruth with green 
+    #     # img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
+    #     original_img_mask[1] = (y.squeeze(1) == 1) * 1 + (original_img_tensor[0] != 1) * original_img_mask[1]
+
+    #     img_mask = img_mask.swapaxes(1,0).cpu()
+    #     original_img_mask = original_img_mask.swapaxes(1,0).cpu()
+
+    #     for idx in range(len(batch_bboxes)):
+    #         bbox = batch_bboxes[idx]
+    #         bx, by, bw, bh = list(map(int, bbox))
+    #         bh = min(bh, original_img_mask.shape[2]-by)
+    #         bw = min(bw, original_img_mask.shape[3]-bx)
+    #         reconstructed_img_mask = transforms.Resize((bh, bw))(img_mask[idx])
+            
+    #         # Create bounding box
+    #         reconstructed_img_mask[0,0,:] = 1
+    #         reconstructed_img_mask[0,-1,:] = 1
+    #         reconstructed_img_mask[0,:,0] = 1
+    #         reconstructed_img_mask[0,:,-1] = 1
+            
+    #         original_img_mask[idx,:,by:by+bh,bx:bx+bw] = reconstructed_img_mask
+    #     log_imgs = original_img_mask
+
+    #     log_img_paths = []
+    #     for idx, img in enumerate(log_imgs):
+    #         img_path = os.path.join(self.hparams.eval_img_path, f"{phase}-{batch_idx}-{idx}.png")
+    #         save_image(
+    #             img,
+    #             img_path
+    #         )
+    #         log_img_paths.append(img_path)
+
+    #     return log_img_paths
 
 
 
