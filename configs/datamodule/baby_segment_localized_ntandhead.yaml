@@ -1,0 +1,7 @@
+defaults:
+  - baby_segment.yaml
+
+_target_: src.datamodules.baby_segment_localized_datamodule.BabySegmentLocalizedNTAndHeadDataModule
+loosen_amount: 0.3
+padding_relative_to_label: true
+resize_localized_region: [544, 896]

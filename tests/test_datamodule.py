@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import cv2
 import pytest
 import torch
 
@@ -14,7 +15,8 @@ def test_baby_datamodule(batch_size):
     preprocessor = AlbumentationWrapper(
         transform=albumentations.Resize(
             height=320,
-            width=544
+            width=544,
+            interpolation=cv2.INTER_NEAREST
         )
     )
     dm = BabySegmentDataModule(

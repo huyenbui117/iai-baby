@@ -1,0 +1,13 @@
+# @package _global_
+
+# Segment from cropped region of the NT region
+# Use for training
+
+defaults: 
+  - official_effnet-b8_segment_localized.yaml
+  - override /datamodule: baby_segment_localized_ntandhead.yaml
+
+tags: ["baby", "effnetb8", "localized_ntandhead"]
+logger:
+  wandb:
+    group: official/localized_ntandhead_segment/baby

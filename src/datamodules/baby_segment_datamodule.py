@@ -26,6 +26,9 @@ class BabySegmentDataModule(BabyDataModule):
         label_paths = glob.glob(os.path.join(data_dir, "label/*"))
         return img_paths, label_paths
 
+    def get_head_paths(self, data_dir):
+        head_paths = glob.glob(os.path.join(data_dir, "head_label_binary/*"))
+        return head_paths
 
     def load_data_from_dir(self, data_dir, greyscale=False, augment=False, lazy_load=True):
         """Load data from directory

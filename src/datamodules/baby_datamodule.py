@@ -262,7 +262,8 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         augment: bool = False, 
         data_module_obj: BabyDataModule = None, 
         greyscale: bool = False,
-        pred_boxes_path: Union[str, None] = None
+        pred_boxes_path: Union[str, None] = None,
+        **kwargs
     ):
         """Dataset for baby
 
@@ -303,11 +304,6 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         assert len(label.unique()) == 2
 
         extras = []
-
-        # if self.head_label_paths:
-        #     head_label_mask = self.data_module_obj.read_head_label(self.head_label_paths[idx])
-        #     head_label_mask = self.data_module_obj.label_preprocessor(head_label_mask)
-        #     extras.extend([head_label_mask])
 
         if self.pred_boxes_path:
             image_id = os.path.basename(self.img_paths[idx]).split(".")[0]
