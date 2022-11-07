@@ -21,4 +21,4 @@ logger:
   wandb:
     group: "eval/segment_from_yolo/baby"
 
-ckpt_path: ${paths.root_dir}/ckpt/2022-10-10_22-24-03_timm-effnet-b8-localized/checkpoints/last.ckpt
+ckpt_path: ${paths.root_dir}/ckpt/2022-10-10_22-24-03_timm-effnet-b8-localized/checkpoints/epoch_146.ckpt

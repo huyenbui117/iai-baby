@@ -25,7 +25,6 @@ class BabySegmentWithHeadMaskLitModule(BabySegmentLitModule):
             pass
         else:
             logits = self.forward(torch.cat((x, y_head), dim=1))
-        # import IPython ; IPython.embed()
         preds = torch.argmax(logits, dim=1)
         y = y.squeeze(1).long()
         loss = self.criterion(logits, y)

@@ -43,7 +43,6 @@ def main(cfg: DictConfig) -> None:
         postprocessor = hydra.utils.instantiate(cfg.model.postprocessor)
         if postprocessor is not None:
             out_mask = postprocessor(out_mask)
-        # import IPython ; IPython.embed()
         save_image(torch.cat((inp[0], out_mask), dim=1), cfg.output_path)
     
 

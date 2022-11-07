@@ -1,8 +1,8 @@
-from typing import Any, List, Union, Callable
+from typing import Any, List, Tuple, Union, Callable
 import os
+import cv2
 import torch
-from pytorch_lightning import LightningModule
-from torchmetrics import MaxMetric, F1Score, Accuracy, Precision, Recall, JaccardIndex
+from torchmetrics import MaxMetric, F1Score, Accuracy, Precision, Recall, JaccardIndex, MeanAbsoluteError
 import segmentation_models_pytorch
 from torchvision.utils import save_image
 
@@ -62,6 +62,8 @@ class BabySegmentLitModule(BabyLitModule):
         self.val_iou = JaccardIndex(mdmc_reduce=MDMC_REDUCE, num_classes=2, average=None)
         self.test_iou = JaccardIndex(mdmc_reduce=MDMC_REDUCE, num_classes=2, average=None)
 
+        self.test_keypoints_mae = MeanAbsoluteError()
+
         # for logging best so far validation accuracy
         self.val_f1_best = MaxMetric()
         self.val_iou_best = MaxMetric()
@@ -76,35 +78,150 @@ class BabySegmentLitModule(BabyLitModule):
 
 
     def step(self, batch: Any):
-        x, y, *args = batch
+        x, y, args = batch
         assert x.shape == y.shape
         assert len(y.unique()) == 2
         logits = self.forward(x)
-
-        # # TODO: Recheck this. Why adding sigmoid improve loss?
-        # logits = torch.nn.functional.sigmoid(logits)
 
         preds = torch.argmax(logits, dim=1)
         y = y.squeeze(1).long()
         loss = self.criterion(logits, y)
 
-
         if self.postprocessor is not None:
             preds = self.postprocessor(preds)
 
-        return loss, preds, y
+        return loss, preds, y, args
+
+    
+    def plot_keypoints(self, 
+        keypoints: torch.Tensor, 
+        img_mask: torch.Tensor,
+        viz_point_size: int = 5,
+        color_code: Tuple[int,int,int] = (0,0,1)
+    ):
+        width, height = img_mask.shape[-1], img_mask.shape[-2]
+
+        for idx, pred_keypoints in enumerate(keypoints):
+            for x, y in pred_keypoints:
+                for channel in range(len(color_code)):
+                    img_mask[
+                        channel,
+                        idx,
+                        max(0,y-viz_point_size)
+                            :min(height-1,y+viz_point_size),
+                        max(0,x-viz_point_size)
+                            :min(width-1,x+viz_point_size)] = color_code[channel]
+        return img_mask
+
+    
+    def plot_thickness(
+        self,
+        images: torch.Tensor, # shape n x c x h x w
+        pred_thickness=None,
+        gt_thickness=None,
+        pred_keypoints=None,
+        gt_keypoints=None,
+        pred_color=(1,0,0),
+        gt_color=(0,1,0),
+        font = cv2.FONT_HERSHEY_SIMPLEX,
+        fontScale = 1,
+        thickness = 2,
+    ):
+        new_images = []
+        for idx, image in enumerate(images):
+            image = image.cpu().numpy().transpose((1,2,0)).copy()
+            w = image.shape[1]
+            cv2.putText(image, f"PR: {pred_thickness[idx]:.2f}", (w-200,150), font, 
+                            fontScale, pred_color, thickness, cv2.LINE_AA)
+            cv2.putText(image, f"GT: {gt_thickness[idx]:.2f}", (w-200,200), font, 
+                            fontScale, gt_color, thickness, cv2.LINE_AA)
+            
+            if pred_keypoints.shape[-1] > 0:
+                cv2.line(
+                    image,
+                    pred_keypoints[idx][0].tolist(), 
+                    pred_keypoints[idx][1].tolist(), 
+                    pred_color, 
+                    thickness
+                )
+            cv2.line(
+                image,
+                gt_keypoints[idx][0].tolist(), 
+                gt_keypoints[idx][1].tolist(), 
+                gt_color, 
+                thickness
+            )
+            
+            new_images.append(torch.from_numpy(image.transpose(2,0,1)))
+        new_images = torch.stack(new_images, dim=0)
+
+        return new_images.to(images.device)
 
 
-    def log_batch_img(self, batch, batch_idx, preds, targets, phase="train"):
+    def log_batch_img(
+        self, 
+        batch, 
+        batch_idx, 
+        preds, 
+        targets, 
+        phase="train", 
+        **kwargs
+    ):
         # Calculate and log predicted images
         img_tensor = batch[0].swapaxes(0,1) # img_tensor shape: (channel(1) x n x h x w)
         img_mask = img_tensor.repeat(3,1,1,1)
 
         # Mask the prediction with red, groundtruth with green 
-        img_mask[0] = (preds == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
-        img_mask[1] = (targets == 1) * 1 + (img_tensor[0] != 1) * img_mask[1]
-            
+        img_mask[0] = (preds == 1) * 0.1 + (img_tensor[0] != 1) * img_mask[1]
+        img_mask[1] = (targets == 1) * 0.1 + (img_tensor[0] != 1) * img_mask[1]
+
+        # Draw the keypoints if they are provided
+        # if "pred_keypoints" in kwargs:
+        #     img_mask = self.plot_keypoints(kwargs["pred_keypoints"], img_mask, color_code=(0,0,1))
+
+        # if "gt_keypoints" in kwargs:
+        #     img_mask = self.plot_keypoints(kwargs["gt_keypoints"], img_mask, color_code=(0,1,0))
+        
+        y_mean = torch.mean(preds.nonzero()[:,1].float()).int()
+        x_mean = torch.mean(preds.nonzero()[:,2].float()).int()
+        x,y = kwargs.get("gt_keypoints")[0][0]
+        if x_mean < img_mask.shape[-1]/2: # region is on the left
+            if x > img_mask.shape[-1]/2:
+                # flip right->left
+                x1 = kwargs["gt_keypoints"][0][0][0]
+                x2 = kwargs["gt_keypoints"][0][1][0]
+                kwargs["gt_keypoints"][0][0][0] = x1 - (x1 - img_mask.shape[-1]//2)*2
+                kwargs["gt_keypoints"][0][1][0] = x2 - (x2 - img_mask.shape[-1]//2)*2
+            # if y < img_mask.shape[-2]/2:
+            #     # flip top->bottom
+            #     y1 = kwargs["gt_keypoints"][0][0][1]
+            #     y2 = kwargs["gt_keypoints"][0][1][1]
+            #     kwargs["gt_keypoints"][0][0][1] = y1 - (y1 - img_mask.shape[-2]//2)*2
+            #     kwargs["gt_keypoints"][0][1][1] = y2 - (y2 - img_mask.shape[-2]//2)*2
+        else: # region is on the right
+            if x < img_mask.shape[-1]/2:
+                # flip right->left
+                x1 = kwargs["gt_keypoints"][0][0][0]
+                x2 = kwargs["gt_keypoints"][0][1][0]
+                kwargs["gt_keypoints"][0][0][0] = x1 - (x1 - img_mask.shape[-1]//2)*2
+                kwargs["gt_keypoints"][0][1][0] = x2 - (x2 - img_mask.shape[-1]//2)*2
+            # if y < img_mask.shape[-2]/2:
+            #     # fip top->bottom
+            #     y1 = kwargs["gt_keypoints"][0][0][1]
+            #     y2 = kwargs["gt_keypoints"][0][1][1]
+            #     kwargs["gt_keypoints"][0][0][1] = y1 - (y1 - img_mask.shape[-2]//2)*2
+            #     kwargs["gt_keypoints"][0][1][1] = y2 - (y2 - img_mask.shape[-2]//2)*2
+        # import IPython ; IPython.embed()
+
         log_imgs = img_mask.swapaxes(1,0).cpu()
+        log_imgs = self.plot_thickness(
+            log_imgs,
+            pred_thickness=kwargs.get("pred_nt_thickness"),    
+            gt_thickness=kwargs.get("gt_nt_thickness"),
+            pred_keypoints=kwargs.get("pred_keypoints"),
+            gt_keypoints=kwargs.get("gt_keypoints")
+        )
+
         log_img_paths = []
         for idx, img in enumerate(log_imgs):
             img_path = os.path.join(self.hparams.eval_img_path, f"{phase}-{batch_idx}-{idx}.png")
@@ -120,7 +237,7 @@ class BabySegmentLitModule(BabyLitModule):
     def training_step(self, batch: Any, batch_idx: int):
         if not self.net.training:
             self.net.train()
-        loss, preds, targets = self.step(batch)
+        loss, preds, targets, _ = self.step(batch)
 
         # log train metrics
         # preds shape   :   (batch_size x h x w)
@@ -162,7 +279,7 @@ class BabySegmentLitModule(BabyLitModule):
     def validation_step(self, batch: Any, batch_idx: int):
         if self.net.training:
             self.net.eval()
-        loss, preds, targets = self.step(batch)
+        loss, preds, targets, _ = self.step(batch)
 
         # log val metrics
         acc = self.val_acc(preds, targets)
@@ -206,7 +323,13 @@ class BabySegmentLitModule(BabyLitModule):
     def test_step(self, batch: Any, batch_idx: int):
         if self.net.training:
             self.net.eval()
-        loss, preds, targets = self.step(batch)
+        loss, preds, targets, args = self.step(batch)
+
+        if "pred_keypoints" in args:
+            pred_keypoints = args["pred_keypoints"]
+
+        if "pred_keypoints" in args:
+            gt_keypoints = args["gt_keypoints"]
 
         # log test metrics
         acc = self.test_acc(preds, targets)
@@ -215,14 +338,39 @@ class BabySegmentLitModule(BabyLitModule):
         f1 = self.test_f1(preds, targets)
         iou = self.test_iou(preds, targets)[1]
 
+        gt_nt_thickness = self.calculate_nt_thickness(gt_keypoints).to(self.device)
+        if pred_keypoints.shape[-1] != 0:        
+            pred_nt_thickness = self.calculate_nt_thickness(pred_keypoints).to(self.device)
+            keypoints_err = torch.mean(
+                torch.sqrt((gt_nt_thickness-pred_nt_thickness)**2)
+            )
+            self.log("test/nt_keypoints_error/exclude_undetected", keypoints_err, on_step=False, on_epoch=True)
+        else:
+            pred_nt_thickness = torch.zeros(gt_keypoints.shape[0]).to(self.device)
+            keypoints_err = torch.mean(
+                torch.sqrt((gt_nt_thickness-pred_nt_thickness)**2)
+            )
+
         self.log("test/loss", loss, on_step=False, on_epoch=True)
         self.log("test/acc", acc, on_step=False, on_epoch=True)
         self.log("test/precision", precision, on_step=False, on_epoch=True)
         self.log("test/recall", recall, on_step=False, on_epoch=True)
         self.log("test/f1", f1, on_step=False, on_epoch=True)
         self.log("test/iou", iou, on_step=False, on_epoch=True)
+        self.log("test/nt_keypoints_error", keypoints_err, on_step=False, on_epoch=True)
+        self.log("test/nt_size", gt_nt_thickness, on_step=False, on_epoch=True)
 
-        img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="test") if self.log_val_img > 0 else []
+        img_log_paths = self.log_batch_img(
+            batch, 
+            batch_idx, 
+            preds, 
+            targets, 
+            phase="test",
+            pred_keypoints=pred_keypoints,
+            gt_keypoints=gt_keypoints,
+            pred_nt_thickness=pred_nt_thickness,
+            gt_nt_thickness=gt_nt_thickness
+        ) if self.log_val_img > 0 else []
 
         return {
             "loss": loss,

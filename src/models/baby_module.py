@@ -1,3 +1,4 @@
+import math
 from typing import Any, List, Union, Callable
 import os
 import random
@@ -62,7 +63,7 @@ class BabyLitModule(LightningModule):
 
 
     def training_step(self, batch: Any, batch_idx: int):
-        loss, preds, targets = self.step(batch)
+        loss, preds, targets, args = self.step(batch)
 
         self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         img_log_paths = self.log_batch_img(batch, batch_idx, preds, targets, phase="train") if self.log_train_img else []
@@ -96,7 +97,7 @@ class BabyLitModule(LightningModule):
 
     def validation_step(self, batch: Any, batch_idx: int):
 
-        loss, preds, targets = self.step(batch)
+        loss, preds, targets, _ = self.step(batch)
 
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
 
@@ -108,7 +109,7 @@ class BabyLitModule(LightningModule):
         }
 
     def test_step(self, batch: Any, batch_idx: int):
-        loss, preds, targets = self.step(batch)
+        loss, preds, targets, _ = self.step(batch)
 
         self.log("test/loss", loss, on_step=False, on_epoch=True)
 
@@ -140,3 +141,103 @@ class BabyLitModule(LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler
         }
+    
+
+    def sample_positive_points(self, img: torch.Tensor, rate=.1):
+        """
+        Return the key position points of a label binary map
+        - t: input tensor (h x w)
+        Return normalized (r,c) 0 <= r,c <= 1
+        """
+        device = img.device
+        index = (img == 1).nonzero().float()
+        index_r = index[:,0] / img.shape[0]
+        index_c = index[:,1] / img.shape[1]
+        
+        normalized_index = torch.stack((index_r, index_c), dim=-1).to(device)
+            
+        num_samples = max(2, int(normalized_index.shape[0]*rate))
+        
+        if len(normalized_index) == 0:
+            return []
+
+        indices = torch.tensor([i for i in range(0, len(normalized_index), len(normalized_index)//num_samples)]).to(img.device)
+        
+        return torch.index_select(normalized_index, 0, indices)
+        
+
+    def measure_nt_width(self, label_tensors: torch.Tensor):
+        device = label_tensors.device
+        keypoints = []
+        for label_tensor in label_tensors:
+            anchor_points = self.sample_positive_points(label_tensor, rate=.01)
+            if len(anchor_points) == 0:
+                keypoints.append([])
+                continue
+            # Do linear regression on 3 anchor points (left, center, right)
+            points = torch.stack([torch.stack((p[1],p[0])) for p in anchor_points]).to(device)
+
+            X = torch.stack((torch.ones(points.shape[0]).to(device),points[:,0]*label_tensor.shape[-1]))
+            Y = points[:,1].unsqueeze(-1)*label_tensor.shape[-2]
+            # b = (X'X)^-1 . X'Y
+            b = torch.inverse(X @ X.transpose(0,1)) @ X @ Y # Formula for linear regression
+
+            x0 = 0
+            y0 = b[0] + b[1]*x0
+            x1 = int(label_tensor.shape[-1])
+            y1 = b[0] + b[1]*x1
+
+            x0 = int(x0)
+            x1 = int(x1)
+            y0 = int(y0)
+            y1 = int(y1)
+
+            best_points = [] # the pixel coordinate of the point in the estimated line
+            best_size = 0 # the number of pixel of the estimation line
+            for x in range(0, int(label_tensor.shape[-1])):
+                y = int(b[0] + b[1] * x)
+
+                if y >= int(label_tensor.shape[-2]): 
+                    continue
+                if not label_tensor[y,x]:
+                    continue
+
+                b1 = -1 / b[1]
+                b0 = y - b1*x
+                points = []
+                # y = b0 + b1x is now the equation perpendicular to the main axis
+                anchor_x, anchor_y = x, y
+                size_px = 0
+                while label_tensor[anchor_y,anchor_x]:
+                    size_px += 1
+                    points.append((anchor_x,anchor_y))
+                    anchor_y += 1
+                    anchor_x = math.floor((anchor_y - b0) / b1)
+                anchor_x, anchor_y = x, y
+
+                points.reverse()
+
+                while label_tensor[anchor_y,anchor_x]:
+                    size_px += 1
+                    points.append((anchor_x,anchor_y))
+                    anchor_y -= 1
+                    anchor_x = math.floor((anchor_y - b0) / b1)
+
+                
+
+                if size_px > best_size:
+                    best_size = size_px
+                    best_points = points
+            if best_size == 0:
+                keypoints.append([])
+                continue
+            keypoints.append([best_points[0], best_points[-1]])
+            
+        return torch.tensor(keypoints)
+
+
+
+    def calculate_nt_thickness(self, keypoints: torch.Tensor):
+        p1 = keypoints[:,0,:]
+        p2 = keypoints[:,1,:]
+        return torch.sqrt(torch.sum((p1-p2)**2, dim=-1))

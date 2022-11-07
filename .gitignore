@@ -155,3 +155,4 @@ inference/*.png
 ckpt
 src/inference
 src/wandb
+src/local

@@ -53,8 +53,6 @@ class ThresholdAreaProcessor(object):
             areas = components[:, 4]
             top_k_component_indexes = np.argsort(areas, axis=-1)[::-1][1:self.top_k+1]
 
-            # import IPython ; IPython.embed()
-            
             if len(top_k_component_indexes) < 1:
                 output_masks.append(torch.tensor(input_mask))
             else:
@@ -67,7 +65,6 @@ class ThresholdAreaProcessor(object):
                             output_mask += component_mask
                         break
                     output_mask += component_mask
-                # import IPython ; IPython.embed()
                 
                 # output_masks.append(torch.tensor(input_mask))
                 output_masks.append(torch.tensor(output_mask).int())

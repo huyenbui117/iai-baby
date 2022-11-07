@@ -13,12 +13,16 @@ class BabySegmentDataModule(BabyDataModule):
 
     def __init__(
         self,
+        *args,
         pred_boxes_path: Union[str, None] = None,
+        gt_keypoints_path: Union[str, None] = None,
         **kwargs
     ):
         super().__init__(
+            *args,
             **kwargs
         )
+        self.gt_keypoints_path = gt_keypoints_path
         self.pred_boxes_path = pred_boxes_path
 
     def get_img_paths(self, data_dir):
@@ -46,7 +50,8 @@ class BabySegmentDataModule(BabyDataModule):
             augment=augment, 
             data_module_obj=self, 
             greyscale=greyscale,
-            pred_boxes_path=self.pred_boxes_path
+            pred_boxes_path=self.pred_boxes_path,
+            gt_keypoints_path=self.gt_keypoints_path
         )
 
 

@@ -2,6 +2,7 @@ defaults:
   - baby_segment.yaml
 
 pred_boxes_path: ${paths.data_dir}/yolo_bbox_preds.json
+gt_keypoints_path: ${paths.data_dir}/test/nt_keypoints.json
 
 image_preprocessor:
   _target_: torchvision.transforms.transforms.Compose

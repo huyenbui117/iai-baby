@@ -263,6 +263,7 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         data_module_obj: BabyDataModule = None, 
         greyscale: bool = False,
         pred_boxes_path: Union[str, None] = None,
+        gt_keypoints_path: Union[str, None] = None,
         **kwargs
     ):
         """Dataset for baby
@@ -282,6 +283,8 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         self.greyscale = greyscale
 
         self.pred_boxes_path = pred_boxes_path
+        self.gt_keypoints_path = gt_keypoints_path
+
         if pred_boxes_path is not None:
             self.imgid_to_boxes = defaultdict(lambda: [])
             with open(pred_boxes_path) as fin:
@@ -294,7 +297,15 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
                     key=lambda box: box["score"],
                     reverse=True
                 )
-        
+
+        if self.gt_keypoints_path is not None:
+            self.imgid_to_keypoints = defaultdict(lambda: [])
+            with open(gt_keypoints_path) as fin:
+                keypoints = json.load(fin)
+                for point in keypoints:
+                    self.imgid_to_keypoints[point["image_id"]].extend([
+                        point["p1"], point["p2"]
+                    ])
 
     def __getitem__(self, idx):
         img = self.data_module_obj.read_image(self.img_paths[idx], greyscale=self.greyscale)
@@ -303,18 +314,25 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         assert img.shape == label.shape
         assert len(label.unique()) == 2
 
-        extras = []
+        extras = {}
+
+        image_id = os.path.basename(self.img_paths[idx]).split(".")[0]
 
         if self.pred_boxes_path:
-            image_id = os.path.basename(self.img_paths[idx]).split(".")[0]
             boxes = self.imgid_to_boxes[image_id]
-            extras.extend([
-                torch.tensor(boxes[0]["bbox"]),
-                torch.tensor(boxes[0]["score"]),
-            ])
+            extras["pred_boxes"] = [{
+                "bbox": torch.tensor(boxes[0]["bbox"]),
+                "score": torch.tensor(boxes[0]["score"]),
+            }]
+
+        if self.gt_keypoints_path:
+            keypoints = self.imgid_to_keypoints[image_id]
+            extras["gt_keypoints"] = torch.tensor(keypoints)
+
+        
 
         if not self.augment:
-            return (img, label, *extras)
+            return (img, label, extras)
         
         augmented_tensors = self.data_module_obj.augment_tensors(img, label)
 
@@ -323,7 +341,7 @@ class BabyLazyLoadDataset(torch.utils.data.Dataset):
         augmented_img = augmented_tensor[0]
         augmented_label = augmented_tensor[1]
 
-        return augmented_img, augmented_label, *extras
+        return augmented_img, augmented_label, extras
 
 
     def __len__(self):
