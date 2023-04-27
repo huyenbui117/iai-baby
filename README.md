@@ -21,7 +21,7 @@ Install dependencies
 
 ```bash
 # clone project
-git clone https://github.com/CaoHoangTung/iai-baby
+git clone https://github.com/huyenbui117/iai-baby
 cd iai-bayb
 
 # [OPTIONAL] create conda environment
