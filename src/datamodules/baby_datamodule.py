@@ -53,6 +53,7 @@ class BabyDataModule(LightningDataModule):
         wandb_project: str = "baby",
         wandb_artifact: str = "baby-team/baby/baby:latest",
         lazy_load: bool = True,
+        download: bool = True,
     ):
         super().__init__()
 
@@ -76,7 +77,8 @@ class BabyDataModule(LightningDataModule):
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None
 
-        self.prepare_data()
+        if download:
+            self.prepare_data()
 
 
     def prepare_data(self):

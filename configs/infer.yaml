@@ -1,0 +1,37 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - datamodule: baby_segment_localized.yaml # choose datamodule with `test_dataloader()` for evaluation
+  - model: baby_segment_timm-efficientnet-b8.yaml
+  - callbacks: default.yaml
+  - logger: wandb.yaml
+  - trainer: gpu.yaml
+  - paths: default.yaml
+  - extras: default.yaml
+  - hydra: default.yaml
+
+  - experiment: null
+
+task_name: "eval"
+
+tags: ["dev"]
+
+# passing checkpoint path is necessary for evaluation
+# ckpt_path: ${paths.log_dir}/train/runs/2022-09-23_14-04-37/checkpoints/epoch_055.ckpt
+# ckpt_path: ${paths.log_dir}/train/runs/2022-09-14_08-42-50/checkpoints/epoch_133.ckpt
+# ckpt_path: ${paths.log_dir}/train/runs/2022-09-14_08-42-50/checkpoints/epoch_133.ckpt
+# ckpt_path: ${paths.log_dir}/train/runs/2022-09-06_11-52-22/checkpoints/epoch_017.ckpt
+# ckpt_path: ${paths.log_dir}/train/runs/2022-09-06_11-41-27/checkpoints/last.ckpt
+
+ckpt_path: ${paths.root_dir}/ckpt/model-g7p77hh6:v0/model.ckpt
+
+input_path: ${paths.root_dir}/data/inference/infer.png
+output_path: ${paths.root_dir}/data/inference/infer_out.png
+output_path_localized: ${paths.root_dir}/data/inference/infer_out_localized.png
+
+target_path: ${paths.root_dir}/data/inference/target.png
+gt_keypoints_path: ${paths.data_dir}/nt_keypoints.json
+model:
+  postprocessor: 
+    _target_: src.models.postprocess.largest_connected_component.MaxAreaProcessor

@@ -14,8 +14,8 @@ class BabySegmentLitModule(BabyLitModule):
 
     def __init__(
         self,
-        net: segmentation_models_pytorch.Unet,
-        optimizer: torch.optim.Optimizer,
+        net: segmentation_models_pytorch.Unet=None,
+        optimizer: torch.optim.Optimizer=None,
         postprocessor: Union[Callable, None] = None,
         lr_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
         lr_scheduler_monitor: str = None,
@@ -42,25 +42,25 @@ class BabySegmentLitModule(BabyLitModule):
 
         # use separate metric instance for train, val and test step
         # to ensure a proper reduction over the epoch
-        self.train_acc = Accuracy(mdmc_reduce=MDMC_REDUCE)
-        self.val_acc = Accuracy(mdmc_reduce=MDMC_REDUCE)
-        self.test_acc = Accuracy(mdmc_reduce=MDMC_REDUCE)
+        self.train_acc = Accuracy(mdmc_reduce=MDMC_REDUCE, task="binary")
+        self.val_acc = Accuracy(mdmc_reduce=MDMC_REDUCE, task="binary")
+        self.test_acc = Accuracy(mdmc_reduce=MDMC_REDUCE, task="binary")
 
-        self.train_precision = Precision(mdmc_reduce=MDMC_REDUCE, ignore_index=0)
-        self.val_precision = Precision(mdmc_reduce=MDMC_REDUCE, ignore_index=0)
-        self.test_precision = Precision(mdmc_reduce=MDMC_REDUCE, ignore_index=0)
+        self.train_precision = Precision(mdmc_reduce=MDMC_REDUCE, task="binary", ignore_index=0)
+        self.val_precision = Precision(mdmc_reduce=MDMC_REDUCE, task="binary", ignore_index=0)
+        self.test_precision = Precision(mdmc_reduce=MDMC_REDUCE, task="binary", ignore_index=0)
 
-        self.train_recall = Recall(mdmc_reduce=MDMC_REDUCE, ignore_index=0)
-        self.val_recall = Recall(mdmc_reduce=MDMC_REDUCE, ignore_index=0)
-        self.test_recall = Recall(mdmc_reduce=MDMC_REDUCE, ignore_index=0)
+        self.train_recall = Recall(mdmc_reduce=MDMC_REDUCE, task="binary", ignore_index=0)
+        self.val_recall = Recall(mdmc_reduce=MDMC_REDUCE, task="binary", ignore_index=0)
+        self.test_recall = Recall(mdmc_reduce=MDMC_REDUCE, task="binary", ignore_index=0)
 
-        self.train_f1 = F1Score(mdmc_reduce=MDMC_REDUCE, ignore_index=0)
-        self.val_f1 = F1Score(mdmc_reduce=MDMC_REDUCE, ignore_index=0)
-        self.test_f1 = F1Score(mdmc_reduce=MDMC_REDUCE, ignore_index=0)
+        self.train_f1 = F1Score(mdmc_reduce=MDMC_REDUCE, task="binary", ignore_index=0)
+        self.val_f1 = F1Score(mdmc_reduce=MDMC_REDUCE, task="binary", ignore_index=0)
+        self.test_f1 = F1Score(mdmc_reduce=MDMC_REDUCE, task="binary", ignore_index=0)
 
-        self.train_iou = JaccardIndex(mdmc_reduce=MDMC_REDUCE, num_classes=2, average=None)
-        self.val_iou = JaccardIndex(mdmc_reduce=MDMC_REDUCE, num_classes=2, average=None)
-        self.test_iou = JaccardIndex(mdmc_reduce=MDMC_REDUCE, num_classes=2, average=None)
+        self.train_iou = JaccardIndex(mdmc_reduce=MDMC_REDUCE, task="binary", num_classes=2, average=None)
+        self.val_iou = JaccardIndex(mdmc_reduce=MDMC_REDUCE, task="binary", num_classes=2, average=None)
+        self.test_iou = JaccardIndex(mdmc_reduce=MDMC_REDUCE, task="binary", num_classes=2, average=None)
 
         self.test_keypoints_mae = MeanAbsoluteError()
 

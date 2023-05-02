@@ -156,3 +156,5 @@ ckpt
 src/inference
 src/wandb
 src/local
+wandb
+.DS_Store
